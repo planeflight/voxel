@@ -1,0 +1,3 @@
+[submodule "lib/omega"]
+	path = lib/omega
+	url = https://github.com/planeflight/omega.git

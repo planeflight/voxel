@@ -1,0 +1,4 @@
+*.ini
+build/
+compile_flags.txt
+.git
