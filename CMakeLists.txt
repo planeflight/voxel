@@ -32,6 +32,7 @@ target_link_libraries(${PROJECT_NAME}
     box2d
     stb
     libtmx-parser
+    SDL2
 )
 
 target_link_directories(${PROJECT_NAME}
