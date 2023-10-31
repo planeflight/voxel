@@ -10,10 +10,10 @@ GBuffer::GBuffer(u32 width, u32 height) : width(width), height(height) {
     glGenTextures(1, &position_buff);
     glBindTexture(GL_TEXTURE_2D, position_buff);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA16F,
+        GL_TEXTURE_2D, 0, GL_RGBA32F,
         width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(
         GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_2D, position_buff, 0);
@@ -22,10 +22,10 @@ GBuffer::GBuffer(u32 width, u32 height) : width(width), height(height) {
     glGenTextures(1, &normal_buff);
     glBindTexture(GL_TEXTURE_2D, normal_buff);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA16F,
+        GL_TEXTURE_2D, 0, GL_RGBA32F,
         width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(
         GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
         GL_TEXTURE_2D, normal_buff, 0);
@@ -34,10 +34,10 @@ GBuffer::GBuffer(u32 width, u32 height) : width(width), height(height) {
     glGenTextures(1, &color_spec_buff);
     glBindTexture(GL_TEXTURE_2D, color_spec_buff);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA16F,
+        GL_TEXTURE_2D, 0, GL_RGBA,
         width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(
         GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,
         GL_TEXTURE_2D, color_spec_buff, 0);
@@ -47,11 +47,39 @@ GBuffer::GBuffer(u32 width, u32 height) : width(width), height(height) {
     glDrawBuffers(3, attachments);
 
     // attach render buffer object as depth buffer
-
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    // check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        omega::util::warn("Framebuffer is not complete!");
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
 
 GBuffer::~GBuffer() {
+    glDeleteTextures(1, &position_buff);
+    glDeleteTextures(1, &normal_buff);
+    glDeleteTextures(1, &color_spec_buff);
 
+    glDeleteFramebuffers(1, &id);
+    glDeleteRenderbuffers(1, &rbo);
+}
+
+void GBuffer::bind_fbo() {
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
+}
+
+void GBuffer::bind_textures() {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, position_buff);
+    
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, normal_buff);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, color_spec_buff);
 }
 

@@ -9,10 +9,13 @@ class GBuffer {
 
     void geometry_pass();
 
+    void bind_fbo();
+    void bind_textures();
+
   private:
     u32 width = 0, height = 0;
 
-    u32 id = 0;
+    u32 id = 0, rbo = 0;
 
     // depth, normal, color
     u32 position_buff = 0;

@@ -7,6 +7,8 @@
 #include "omega/scene/perspective_camera.hpp"
 #include "omega/util/std.hpp"
 #include "voxel/entity/chunk.hpp"
+#include "voxel/gfx/composite.hpp"
+#include "voxel/gfx/gbuffer.hpp"
 
 using namespace omega;
 
@@ -16,7 +18,7 @@ struct VoxelGame : public core::App {
     }
     
     void setup() override {
-        gfx::enable_blending();
+        // gfx::enable_blending();
         gfx::set_depth_test(true);
 
         globals->input.set_relative_mouse_mode(true);
@@ -31,12 +33,21 @@ struct VoxelGame : public core::App {
 
         // load shaders
         globals->asset_manager.load_shader("block", "./res/shaders/block.glsl");
+        util::info("{}", __LINE__);
+        globals->asset_manager.load_shader("composite", "./res/shaders/composite.glsl");
 
         // load textures
         globals->asset_manager.load_texture("block", "./res/textures/blocks.png");
+
+        // load gbuffer
+        gbuffer = util::create_uptr<GBuffer>(1600, 900);
+        composite = util::create_uptr<Composite>();
     }
     
     void render(f32 dt) override {
+
+        // render to g buffer first
+        gbuffer->bind_fbo();
         gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
         gfx::clear_buffer(
             OMEGA_GL_COLOR_BUFFER_BIT | OMEGA_GL_DEPTH_BUFFER_BIT);
@@ -50,10 +61,31 @@ struct VoxelGame : public core::App {
         globals->asset_manager.get_texture("block")->bind(0);
         shader->set_uniform_1i("u_texture", 0);
 
+        shader->set_uniform_3f("u_chunk_size", Chunk::dimens.x, Chunk::dimens.y, Chunk::dimens.z);
         for (auto &chunk : chunks) {
+            shader->set_uniform_3f("u_chunk_offset", chunk->get_position().x, chunk->get_position().y, chunk->get_position().z);
             chunk->render(dt);
         }
         shader->unbind();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // render to composite
+        gbuffer->bind_textures();
+
+        gfx::set_clear_color(1.0f, 1.0f, 1.0f, 1.0f);
+        gfx::clear_buffer(
+            OMEGA_GL_COLOR_BUFFER_BIT | OMEGA_GL_DEPTH_BUFFER_BIT);
+        auto *composite_shader = globals->asset_manager.get_shader("composite");
+        composite_shader->bind();
+
+        composite_shader->set_uniform_1i("u_position", 0);
+        composite_shader->set_uniform_1i("u_normal", 1);
+        composite_shader->set_uniform_1i("u_color", 2);
+        composite_shader->set_uniform_3f("u_view_pos", camera->position.x, camera->position.y, camera->position.z);
+        composite->render();
+
+        composite_shader->unbind();
     }
 
     void update(f32 dt) override {
@@ -98,6 +130,10 @@ struct VoxelGame : public core::App {
     std::vector<util::uptr<Chunk>> chunks;
 
     constexpr static float camera_speed = 10.0f;
+
+
+    util::uptr<GBuffer> gbuffer = nullptr;
+    util::uptr<Composite> composite = nullptr;
 };
 
 int main() {
