@@ -77,6 +77,7 @@ void main() {
     // normal = v_normal;
     // color.rgb = tex_color.rgb;
     // color.a = 1.0;
+    // MAKE w=1.0 OR ELSE SHADOWS DON'T WORK
     position = vec4(v_pos, 1.0);
     normal = v_normal;
     color.rgb = tex_color.rgb;
