@@ -1,3 +1,5 @@
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include "omega/core/app.hpp"
 #include "imgui/imgui.h"
 #include "omega/core/viewport.hpp"
@@ -33,8 +35,8 @@ struct VoxelGame : public core::App {
 
         // load shaders
         globals->asset_manager.load_shader("block", "./res/shaders/block.glsl");
-        util::info("{}", __LINE__);
         globals->asset_manager.load_shader("composite", "./res/shaders/composite.glsl");
+        globals->asset_manager.load_shader("shadow_map", "./res/shaders/shadow_map.glsl");
 
         // load textures
         globals->asset_manager.load_texture("block", "./res/textures/blocks.png");
@@ -47,7 +49,7 @@ struct VoxelGame : public core::App {
     void render(f32 dt) override {
 
         // render to g buffer first
-        gbuffer->bind_fbo();
+        gbuffer->bind_geometry_fbo();
         gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
         gfx::clear_buffer(
             OMEGA_GL_COLOR_BUFFER_BIT | OMEGA_GL_DEPTH_BUFFER_BIT);
@@ -70,19 +72,46 @@ struct VoxelGame : public core::App {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        // render to shadow map
+        gbuffer->bind_shadow_fbo();
+        glViewport(0, 0, 1024, 1024);
+        gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+        gfx::clear_buffer(OMEGA_GL_DEPTH_BUFFER_BIT);
+        auto *shadow_map_shader = globals->asset_manager.get_shader("shadow_map");
+        shadow_map_shader->bind();
+        float near = -20.0f, far = 20.0f;
+        math::mat4 light_projection = math::ortho(near, far, near, far, near, far);
+        math::mat4 light_view = math::lookAt(math::vec3(10.0f), math::vec3(0.0f), math::vec3(0.0f, 1.0f, 0.0f));
+        math::mat4 light_space = light_projection * light_view;
+
+        shadow_map_shader->set_uniform_3f("u_chunk_size", Chunk::dimens.x, Chunk::dimens.y, Chunk::dimens.z);
+        shadow_map_shader->set_uniform_mat4f("u_light_space", light_space);
+        // util::debug("{}", math::to_string(light_space));
+
+        for (auto &chunk : chunks) {
+            shadow_map_shader->set_uniform_3f("u_chunk_offset", chunk->get_position().x, chunk->get_position().y, chunk->get_position().z);
+            chunk->render(dt);
+        }
+        shadow_map_shader->unbind();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // render to composite
-        gbuffer->bind_textures();
+        gbuffer->bind_geometry_textures();
+        gbuffer->bind_shadow_textures();
 
         gfx::set_clear_color(1.0f, 1.0f, 1.0f, 1.0f);
         gfx::clear_buffer(
             OMEGA_GL_COLOR_BUFFER_BIT | OMEGA_GL_DEPTH_BUFFER_BIT);
+        viewport->on_resize(window->get_width(), window->get_height());
         auto *composite_shader = globals->asset_manager.get_shader("composite");
         composite_shader->bind();
 
         composite_shader->set_uniform_1i("u_position", 0);
         composite_shader->set_uniform_1i("u_normal", 1);
         composite_shader->set_uniform_1i("u_color", 2);
+        composite_shader->set_uniform_1i("u_depth_map", 3);
         composite_shader->set_uniform_3f("u_view_pos", camera->position.x, camera->position.y, camera->position.z);
+        composite_shader->set_uniform_mat4f("u_light_space", light_space);
         composite->render();
 
         composite_shader->unbind();

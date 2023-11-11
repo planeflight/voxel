@@ -64,7 +64,7 @@ layout(location=0) in vec3 v_pos;
 layout(location=1) in vec2 v_tex_coords;
 layout(location=2) in vec3 v_normal;
 
-layout(location=0) out vec3 position;
+layout(location=0) out vec4 position;
 layout(location=1) out vec3 normal;
 layout(location=2) out vec4 color;
 
@@ -77,7 +77,7 @@ void main() {
     // normal = v_normal;
     // color.rgb = tex_color.rgb;
     // color.a = 1.0;
-    position = v_pos;
+    position = vec4(v_pos, 1.0);
     normal = v_normal;
     color.rgb = tex_color.rgb;
     color.a = 1.0;

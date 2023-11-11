@@ -57,6 +57,21 @@ GBuffer::GBuffer(u32 width, u32 height) : width(width), height(height) {
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    glGenFramebuffers(1, &shadow_id);
+    glGenTextures(1, &light_buff);
+    glBindTexture(GL_TEXTURE_2D, light_buff);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 
+                 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);  
+
+    glBindFramebuffer(GL_FRAMEBUFFER, shadow_id);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, light_buff, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 GBuffer::~GBuffer() {
@@ -66,13 +81,21 @@ GBuffer::~GBuffer() {
 
     glDeleteFramebuffers(1, &id);
     glDeleteRenderbuffers(1, &rbo);
+
+    glDeleteTextures(1, &light_buff);
+
+    glDeleteFramebuffers(1, &shadow_id);
 }
 
-void GBuffer::bind_fbo() {
+void GBuffer::bind_geometry_fbo() {
     glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-void GBuffer::bind_textures() {
+void GBuffer::bind_shadow_fbo() {
+    glBindFramebuffer(GL_FRAMEBUFFER, shadow_id);
+}
+
+void GBuffer::bind_geometry_textures() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, position_buff);
     
@@ -81,5 +104,10 @@ void GBuffer::bind_textures() {
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, color_spec_buff);
+}
+
+void GBuffer::bind_shadow_textures() {
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, light_buff);
 }
 
