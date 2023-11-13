@@ -175,7 +175,9 @@ void Chunk::gen_blocks() {
 			blocks[get_index(x, 0, z)].type = BlockType::GRASS;
             // add some blocks on top
             if (x % 4 == 0 && z % 4 == 0) {
-                blocks[get_index(x, 1, z)].type = BlockType::GRASS;
+                for (size_t y = 1; y <= 3; ++y) {
+                    blocks[get_index(x, y, z)].type = BlockType::STONE;
+                }
             }
         }
     }

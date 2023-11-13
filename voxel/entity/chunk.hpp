@@ -69,7 +69,7 @@ class Chunk {
         y = idx / width;
         x = idx % width;
     }
-
+ 
     void gen_blocks();
     void load_mesh();
 

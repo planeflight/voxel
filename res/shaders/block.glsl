@@ -73,10 +73,6 @@ uniform sampler2D u_texture;
 void main() {
     vec4 tex_color = texture(u_texture, v_tex_coords);
 
-    // position = v_pos;
-    // normal = v_normal;
-    // color.rgb = tex_color.rgb;
-    // color.a = 1.0;
     // MAKE w=1.0 OR ELSE SHADOWS DON'T WORK
     position = vec4(v_pos, 1.0);
     normal = v_normal;

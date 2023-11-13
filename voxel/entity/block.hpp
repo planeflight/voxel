@@ -5,8 +5,9 @@
 #include "omega/math/math.hpp"
 
 enum class BlockType : i8 {
-    NONE = 0,
-    GRASS = 1,
+    NONE = -1,
+    GRASS = 0,
+    STONE = 1,
 };
 
 struct Block {
