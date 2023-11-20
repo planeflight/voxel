@@ -54,6 +54,10 @@ vec2 poisson_disk[POISSON_SAMPLES] = vec2[](
    vec2( 0.14383161, -0.14100790 ) 
 );
 
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 float get_shadow() {
     vec4 frag_pos_light_space = u_light_space * texture(u_position, v_tex_coords);
     vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
