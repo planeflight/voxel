@@ -8,6 +8,15 @@ enum class BlockType : i8 {
     NONE = -1,
     GRASS = 0,
     STONE = 1,
+    BRICK = 2,
+    COAL = 3,
+    DIRT = 4,
+    WATER = 5,
+    SAND = 6,
+    SNOW = 7,
+    TREE_TRUNK = 8,
+    LEAF = 9,
+    GLASS = 10,
 };
 
 struct Block {

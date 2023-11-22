@@ -1,5 +1,6 @@
 #include "voxel/entity/chunk.hpp"
 #include "voxel/entity/block.hpp"
+#include "voxel/util/worldgen.hpp"
 
 
 static void compress_vertex(const glm::ivec3 &pos, Direction normal, const glm::ivec2 &tex_uv, Vertex &vertex) {
@@ -170,15 +171,30 @@ void Chunk::gen_blocks() {
         get_xyz(i, x, y, z);
         blocks[i] = Block{BlockType::NONE, (u8)x, (u8)y, (u8)z};
     }
+
+    const f32 max_height = 80.0f;
+
+    auto *generator = WorldGen::instance();
     for (size_t z = 0; z < depth; ++z) {
         for (size_t x = 0; x < width; ++x) {
-			blocks[get_index(x, 0, z)].type = BlockType::GRASS;
-            // add some blocks on top
+			blocks[get_index(x, 0, z)].type = BlockType::STONE;
             if (x % 4 == 0 && z % 4 == 0) {
-                for (size_t y = 1; y <= 2; ++y) {
-                    blocks[get_index(x, y, z)].type = BlockType::STONE;
+                for (int y = 1; y < 3; ++y){
+                    blocks[get_index(x, y, z)].type = BlockType::GRASS;
                 }
             }
+   //          f32 x_pos = (position.x * (f32)width + (f32)x);
+   //          f32 z_pos = (position.z * (f32)depth + (f32)z);
+			//
+			// f32 h = generator->get_height(x_pos, z_pos);
+   //          h = h * 2.0 - 1.0;
+   //          h = 30.0f + 70.0f * h;
+   //          h = omega::math::round(h);
+   //          h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
+			//
+   //          for (u32 y = 0; y <= h; ++y) {
+   //              blocks[get_index(x, y, z)].type = BlockType::GRASS;
+   //          }
         }
     }
 }

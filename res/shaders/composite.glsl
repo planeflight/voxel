@@ -15,12 +15,18 @@ void main() {
 
 layout(location=0) in vec2 v_tex_coords;
 
+uniform mat4 u_projection;
+uniform mat4 u_view;
+
 uniform sampler2D u_position;
 uniform sampler2D u_normal;
 uniform sampler2D u_color;
 
 uniform sampler2D u_depth_map;
 uniform mat4 u_light_space;
+
+uniform sampler2D u_noise;
+uniform vec3[64] u_ssao_samples;
 
 out vec4 color;
 
@@ -58,6 +64,45 @@ float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+// float get_ssao() {
+//     // constants
+//     int kernel_size = 16;
+//     float radius = 0.035;
+//     float bias = 0.0025;
+//
+//     vec2 noise_scale = vec2(1600.0 / 4.0, 900.0 / 4.0);
+//
+//     vec3 frag_pos = texture(u_position, v_tex_coords).xyz;
+//     vec3 normal = normalize(texture(u_normal, v_tex_coords).xyz);
+//     vec3 random_vec = normalize(texture(u_noise, v_tex_coords * noise_scale).xyz);
+//
+//     vec3 tangent = normalize(random_vec - normal * dot(random_vec, normal));
+//     vec3 bitangent = cross(normal, tangent);
+//     mat3 tbn = mat3(tangent, bitangent, normal);
+//
+//     float occlusion = 0.0;
+//
+//     for (int i = 0; i < kernel_size; ++i) {
+//         // get sample position
+//         vec3 sample_pos = tbn * u_ssao_samples[i];
+//         sample_pos = frag_pos + sample_pos * radius;
+//
+//         // project sample position onto clip space
+//         vec4 offset = vec4(sample_pos, 1.0);
+//         offset = u_projection * offset;
+//         offset.xy /= offset.w;
+//         offset.xy = offset.xy * 0.5 + 0.5;
+//
+//         float sample_depth = texture(u_position, offset.xy).z;
+//
+//         float range_check = smoothstep(0.0, 1.0, radius / abs(frag_pos.z - sample_depth));
+//         occlusion += (sample_depth >= sample_pos.z + bias ? 1.0 : 0.0) * range_check;
+//     }
+//
+//     occlusion = 1.0 - (occlusion / kernel_size);
+//     return occlusion;
+// }
+
 float get_shadow() {
     vec4 frag_pos_light_space = u_light_space * texture(u_position, v_tex_coords);
     vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
@@ -68,16 +113,17 @@ float get_shadow() {
     float closest_depth = texture(u_depth_map, proj_coords.xy).x;
     // fragment depth
     float frag_depth = proj_coords.z;
-    float bias = 0.002;
-    // float shadow = frag_depth - bias > closest_depth ? 1.0 : 0.0;
-    float shadow = 0.0;
-    vec2 texel_size = vec2(1.0) / textureSize(u_depth_map, 0);
-    for (int i = 0; i < POISSON_SAMPLES; ++i) {
-        float d = texture(u_depth_map, proj_coords.xy + poisson_disk[i] * texel_size).x;
-        shadow += (frag_depth - bias > d) ? 1.0 : 0.0;
-    }
-
-    return shadow / POISSON_SAMPLES;
+    float bias = 0.005;
+    float shadow = frag_depth - bias > closest_depth ? 1.0 : 0.0;
+    // float shadow = 0.0;
+    // vec2 texel_size = vec2(1.0) / textureSize(u_depth_map, 0);
+    // for (int i = 0; i < POISSON_SAMPLES; ++i) {
+    //     float d = texture(u_depth_map, proj_coords.xy + poisson_disk[i] * texel_size).x;
+    //     shadow += (frag_depth - bias > d) ? 1.0 : 0.0;
+    // }
+    //
+    // return shadow / POISSON_SAMPLES;
+    return shadow;
 }
 
 vec3 get_sunlight() {
@@ -104,5 +150,15 @@ void main() {
     vec3 object_color = texture(u_color, v_tex_coords).rgb;
 
     // ambient, diffuse from sun
-    color = vec4(get_sunlight() * object_color, 1.0);
+    // color = vec4(get_sunlight() * object_color, 1.0);
+    color.rgb = vec3(get_shadow());
+    if (v_tex_coords.x > 0.5 && v_tex_coords.y > 0.5) {
+        color.rgb = vec3(texture(u_depth_map, v_tex_coords * 2.0 - 1.0).r);
+        color.a = 1.0;
+    }
+    // gamma correction
+    float gamma = 2.2;
+    color.rgb = pow(color.rgb, vec3(1.0 / gamma));
+    // color.rgb = vec3(texture(u_depth_map, v_tex_coords).r);
+    // color.a = 1.0;
 }
