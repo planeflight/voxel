@@ -29,11 +29,12 @@ struct VoxelGame : public core::App {
         gfx::set_depth_test(true);
 
         globals->input.set_relative_mouse_mode(true);
-        player = util::create_uptr<Player>(math::vec3(0.0f, 40.0f, 0.0f), math::vec3(1.0f));
+        player = util::create_uptr<Player>(math::vec3(0.0f, 0.0f, 0.0f), math::vec3(1.0f));
+        player->set_projection(60.0f, 1600.0f / 900.0f, 1.0f, 128.0f);
         // create sun
         sun = util::create_uptr<Sun>();
-        // sun->direction = math::normalize(math::vec3(0.60f, -0.7f, -0.30f));
-        sun->direction = -math::normalize(math::vec3(-2.0f, 4.0f, -1.0f));
+        sun->direction = math::normalize(math::vec3(0.60f, -0.7f, -0.30f));
+        // sun->direction = math::normalize(math::vec3(-10.0f));
         sun->ambient = math::vec3(0.6f);
         sun->diffuse = math::vec3(1.0f);
 
@@ -42,8 +43,8 @@ struct VoxelGame : public core::App {
         viewport->on_resize(window->get_width(), window->get_height());
 
         // push chunks
-        for (i32 z = 0; z < 8; ++z) {
-            for (i32 x = 0; x < 8; ++x) {
+        for (i32 z = 0; z < 5; ++z) {
+            for (i32 x = 0; x < 5; ++x) {
                 chunks.push_back(
                     util::create_uptr<Chunk>(
                         math::vec3((f32)x, 0.0f, (f32)z)));
@@ -57,6 +58,11 @@ struct VoxelGame : public core::App {
                                            "./res/shaders/composite.glsl");
         globals->asset_manager.load_shader("shadow_map",
                                            "./res/shaders/shadow_map.glsl");
+        globals->asset_manager.load_shader("ssao",
+                                           "./res/shaders/ssao.glsl");
+        globals->asset_manager.load_shader("ssao_blur",
+                                           "./res/shaders/ssao_blur.glsl");
+
 
         // load textures
         globals->asset_manager.load_texture("block",
@@ -93,14 +99,14 @@ struct VoxelGame : public core::App {
 
             rotation_vectors[i] = v;
         }
-        auto *composite_shader = globals->asset_manager.get_shader("composite");
-        composite_shader->bind();
+        auto *ssao_shader = globals->asset_manager.get_shader("ssao");
+        ssao_shader->bind();
         for (u32 i = 0; i < 64; ++i) {
-            composite_shader->set_uniform_3f(
+            ssao_shader->set_uniform_3f(
                 "u_ssao_samples[" + std::to_string(i) + "]",
                 rotation_vectors[i]);
         }
-        composite_shader->unbind();
+        ssao_shader->unbind();
 
         // load framebuffers and deferred renderer
         std::vector<gfx::FrameBufferAttachment> attachments{
@@ -135,9 +141,34 @@ struct VoxelGame : public core::App {
 
         dfr = util::create_uptr<gfx::renderer::DeferredRenderer>(
             1600, 900, attachments);
+        // add SSAO framebuffer
+        attachments.clear();
+        attachments.push_back({
+            .width = 1600,
+            .height = 900,
+            .name = "ssao",
+            .internal_fmt = gfx::texture::TextureFormat::RGBA,
+            .external_fmt = gfx::texture::TextureFormat::RGBA,
+            .min_filter = gfx::texture::TextureParam::LINEAR,
+            .mag_filter = gfx::texture::TextureParam::LINEAR,
+        });
+        dfr->framebuffers["ssao"] = util::create_uptr<gfx::FrameBuffer>(1600, 900, attachments);
+
+        // add SSAO_blur framebuffer
+        attachments.clear();
+        attachments.push_back({
+            .width = 1600,
+            .height = 900,
+            .name = "ssao_blur",
+            .internal_fmt = gfx::texture::TextureFormat::RED,
+            .external_fmt = gfx::texture::TextureFormat::RED,
+            .min_filter = gfx::texture::TextureParam::LINEAR,
+            .mag_filter = gfx::texture::TextureParam::LINEAR,
+        });
+        dfr->framebuffers["ssao_blur"] = util::create_uptr<gfx::FrameBuffer>(1600, 900, attachments);
 
         // TODO: make it use less memory
-        const u32 shadow_map_size = 1024;
+        const u32 shadow_map_size = 4096;
         attachments.clear();
         attachments.push_back({
             .width = shadow_map_size,
@@ -147,8 +178,8 @@ struct VoxelGame : public core::App {
             .external_fmt = gfx::texture::TextureFormat::DEPTH_COMPONENT,
             .min_filter = gfx::texture::TextureParam::LINEAR,
             .mag_filter = gfx::texture::TextureParam::LINEAR,
-            // .wrap_s = gfx::texture::TextureParam::CLAMP_TO_BORDER,
-            // .wrap_t = gfx::texture::TextureParam::CLAMP_TO_BORDER,
+            .wrap_s = gfx::texture::TextureParam::REPEAT,
+            .wrap_t = gfx::texture::TextureParam::REPEAT,
             .draw_buffer = false
         });
         shadow_map = util::create_uptr<gfx::FrameBuffer>(shadow_map_size, shadow_map_size, attachments);
@@ -170,9 +201,9 @@ struct VoxelGame : public core::App {
             globals->asset_manager.get_texture("block")->bind(0);
             shader->set_uniform_1i("u_texture", 0);
 
-            shader->set_uniform_3f("u_chunk_size", Chunk::dimens.x, Chunk::dimens.y, Chunk::dimens.z);
+            shader->set_uniform_3f("u_chunk_size", Chunk::dimens);
             for (auto &chunk : chunks) {
-                shader->set_uniform_3f("u_chunk_offset", chunk->get_position().x, chunk->get_position().y, chunk->get_position().z);
+                shader->set_uniform_3f("u_chunk_offset", chunk->get_position());
                 chunk->render(dt);
             }
             shader->unbind();
@@ -186,14 +217,52 @@ struct VoxelGame : public core::App {
         gfx::clear_buffer(OMEGA_GL_DEPTH_BUFFER_BIT);
         auto *shadow_map_shader = globals->asset_manager.get_shader("shadow_map");
         shadow_map_shader->bind();
-        shadow_map_shader->set_uniform_3f("u_chunk_size", Chunk::dimens.x, Chunk::dimens.y, Chunk::dimens.z);
+        shadow_map_shader->set_uniform_3f("u_chunk_size", Chunk::dimens);
         shadow_map_shader->set_uniform_mat4f("u_light_space", sun->get_view_projection_matrix());
 
         for (auto &chunk : chunks) {
-            shadow_map_shader->set_uniform_3f("u_chunk_offset", chunk->get_position().x, chunk->get_position().y, chunk->get_position().z);
+            shadow_map_shader->set_uniform_3f("u_chunk_offset", chunk->get_position());
             chunk->render(dt);
         }
         shadow_map_shader->unbind();
+
+        gfx::FrameBuffer::unbind();
+
+        // render SSAO
+        dfr->quad_pass([&]() {
+            auto ssao_fbo = dfr->framebuffers["ssao"].get();
+            ssao_fbo->bind();
+            gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+            gfx::clear_buffer(OMEGA_GL_COLOR_BUFFER_BIT | OMEGA_GL_DEPTH_BUFFER_BIT);
+
+            auto ssao_shader = globals->asset_manager.get_shader("ssao");
+            ssao_shader->bind();
+            // bind gbuffer textures
+            dfr->gbuffer->get_attachment("position").bind(0);
+            dfr->gbuffer->get_attachment("normal").bind(1);
+            // bind noise texture
+            globals->asset_manager.get_texture("ssao_noise")->bind(2);
+            
+            // set uniforms
+            ssao_shader->set_uniform_1i("u_position", 0);
+            ssao_shader->set_uniform_1i("u_normal", 1);
+            ssao_shader->set_uniform_1i("u_noise", 2);
+
+            ssao_shader->set_uniform_mat4f("u_projection", player->get_projection_matrix());
+            ssao_shader->set_uniform_mat4f("u_view", player->get_view_matrix());
+        });
+
+        // blur SSAO
+        dfr->quad_pass([&]() {
+            auto ssao_blur_fbo = dfr->framebuffers["ssao_blur"].get();
+            ssao_blur_fbo->bind();
+            gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+            gfx::clear_buffer(OMEGA_GL_COLOR_BUFFER_BIT | OMEGA_GL_DEPTH_BUFFER_BIT);
+            auto *shader = globals->asset_manager.get_shader("ssao_blur");
+            // bind ssao texture
+            dfr->framebuffers["ssao"]->get_attachment("ssao").bind(0);
+            shader->set_uniform_1i("u_ssao", 0);
+        });
 
         gfx::FrameBuffer::unbind();
 
@@ -214,18 +283,18 @@ struct VoxelGame : public core::App {
 
             // bind shadow map texture
             shadow_map->get_attachment("shadow_map").bind(3);
-            // bind noise texture
-            globals->asset_manager.get_texture("ssao_noise")->bind(4);
+
+            // bind ssao blur texture
+            dfr->framebuffers["ssao_blur"]->get_attachment("ssao_blur").bind(4);
 
             composite_shader->set_uniform_1i("u_position", 0);
             composite_shader->set_uniform_1i("u_normal", 1);
             composite_shader->set_uniform_1i("u_color", 2);
             composite_shader->set_uniform_1i("u_depth_map", 3);
-            composite_shader->set_uniform_1i("u_noise", 4);
-            composite_shader->set_uniform_3f("u_view_pos", player->position.x, player->position.y, player->position.z);
+            composite_shader->set_uniform_1i("u_ssao", 4);
+
+            composite_shader->set_uniform_3f("u_view_pos", player->position);
             composite_shader->set_uniform_mat4f("u_light_space", sun->get_view_projection_matrix());
-            composite_shader->set_uniform_mat4f("u_projection", player->get_projection_matrix());
-            composite_shader->set_uniform_mat4f("u_projection", player->get_view_matrix());
             // sun uniforms
             composite_shader->set_uniform_3f("u_sunlight.direction", sun->direction);
             composite_shader->set_uniform_3f("u_sunlight.ambient", sun->ambient);

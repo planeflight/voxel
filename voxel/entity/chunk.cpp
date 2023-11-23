@@ -188,11 +188,11 @@ void Chunk::gen_blocks() {
 			//
 			// f32 h = generator->get_height(x_pos, z_pos);
    //          h = h * 2.0 - 1.0;
-   //          h = 30.0f + 70.0f * h;
+   //          h = 30.0f + 30.0f * h;
    //          h = omega::math::round(h);
    //          h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
 			//
-   //          for (u32 y = 0; y <= h; ++y) {
+   //          for (u32 y = 1; y <= h; ++y) {
    //              blocks[get_index(x, y, z)].type = BlockType::GRASS;
    //          }
         }
