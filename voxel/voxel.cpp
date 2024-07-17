@@ -30,11 +30,11 @@ struct VoxelGame : public core::App {
 
         globals->input.set_relative_mouse_mode(true);
         player = util::create_uptr<Player>(math::vec3(0.0f, 0.0f, 0.0f), math::vec3(1.0f));
-        player->set_projection(60.0f, 1600.0f / 900.0f, 1.0f, 128.0f);
+        player->set_projection(45.0f, 1600.0f / 900.0f, 1.0f, 128.0f);
         // create sun
         sun = util::create_uptr<Sun>();
-        sun->direction = math::normalize(math::vec3(0.60f, -0.7f, -0.30f));
-        // sun->direction = math::normalize(math::vec3(-10.0f));
+        // sun->direction = math::normalize(math::vec3(0.60f, -0.7f, -0.30f));
+        sun->direction = math::normalize(math::vec3(-5.0f, -10.0f, 4.6f));
         sun->ambient = math::vec3(0.6f);
         sun->diffuse = math::vec3(1.0f);
 
@@ -90,9 +90,10 @@ struct VoxelGame : public core::App {
                 util::random<f32>(-1.0f, 1.0f),
                 util::random<f32>(0.0f, 1.0f)
             };
-            // as i increases, make the distance increase quadratically, so smaller i values are much closer
+            // make a semi-sphere
             v = math::normalize(v);
             v *= util::random<f32>(0.0f, 1.0f);
+            // make values closer to the center on average w/ quadratic function
             f32 scale = (f32)i / 64.0f;
             scale = math::lerp(0.1f, 1.0f, scale * scale);
             v *= scale;
@@ -178,8 +179,8 @@ struct VoxelGame : public core::App {
             .external_fmt = gfx::texture::TextureFormat::DEPTH_COMPONENT,
             .min_filter = gfx::texture::TextureParam::LINEAR,
             .mag_filter = gfx::texture::TextureParam::LINEAR,
-            .wrap_s = gfx::texture::TextureParam::REPEAT,
-            .wrap_t = gfx::texture::TextureParam::REPEAT,
+            .wrap_s = gfx::texture::TextureParam::CLAMP_TO_BORDER,
+            .wrap_t = gfx::texture::TextureParam::CLAMP_TO_BORDER,
             .draw_buffer = false
         });
         shadow_map = util::create_uptr<gfx::FrameBuffer>(shadow_map_size, shadow_map_size, attachments);
@@ -337,7 +338,8 @@ struct VoxelGame : public core::App {
         }
 
         glm::vec2 mouse_move = globals->input.get_mouse_move();
-        player->mouse_movement(mouse_move.x, mouse_move.y, 0.1f);
+        mouse_move *= globals->input.get_mouse_sensitivity();
+        player->mouse_movement(mouse_move.x, mouse_move.y);
         // enable/disable mouse
         if (keys.key_just_released(omega::events::Key::k_m)) {
             globals->input.set_relative_mouse_mode(!globals->input.get_relative_mouse_mode());

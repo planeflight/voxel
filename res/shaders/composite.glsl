@@ -36,31 +36,63 @@ struct DirectionLight {
 uniform vec3 u_view_pos;
 uniform DirectionLight u_sunlight;
 
-const int POISSON_SAMPLES = 16;
+const int POISSON_SAMPLES = 32;
 vec2 poisson_disk[POISSON_SAMPLES] = vec2[]( 
-    vec2( -0.94201624, -0.39906216 ), 
-    vec2( 0.94558609, -0.76890725 ), 
-    vec2( -0.094184101, -0.92938870 ), 
-    vec2( 0.34495938, 0.29387760 ), 
-    vec2( -0.91588581, 0.45771432 ), 
-    vec2( -0.81544232, -0.87912464 ), 
-    vec2( -0.38277543, 0.27676845 ), 
-    vec2( 0.97484398, 0.75648379 ), 
-    vec2( 0.44323325, -0.97511554 ), 
-    vec2( 0.53742981, -0.47373420 ), 
-    vec2( -0.26496911, -0.41893023 ), 
-    vec2( 0.79197514, 0.19090188 ), 
-    vec2( -0.24188840, 0.99706507 ), 
-    vec2( -0.81409955, 0.91437590 ), 
-    vec2( 0.19984126, 0.78641367 ), 
-    vec2( 0.14383161, -0.14100790 ) 
+    // vec2( -0.94201624, -0.39906216 ), 
+    // vec2( 0.94558609, -0.76890725 ), 
+    // vec2( -0.094184101, -0.92938870 ), 
+    // vec2( 0.34495938, 0.29387760 ), 
+    // vec2( -0.91588581, 0.45771432 ), 
+    // vec2( -0.81544232, -0.87912464 ), 
+    // vec2( -0.38277543, 0.27676845 ), 
+    // vec2( 0.97484398, 0.75648379 ), 
+    // vec2( 0.44323325, -0.97511554 ), 
+    // vec2( 0.53742981, -0.47373420 ), 
+    // vec2( -0.26496911, -0.41893023 ), 
+    // vec2( 0.79197514, 0.19090188 ), 
+    // vec2( -0.24188840, 0.99706507 ), 
+    // vec2( -0.81409955, 0.91437590 ), 
+    // vec2( 0.19984126, 0.78641367 ), 
+    // vec2( 0.14383161, -0.14100790 ) 
+    vec2(-0.94201624,  -0.39906216 ),
+    vec2( 0.94558609,  -0.76890725 ),
+    vec2(-0.094184101, -0.92938870 ),
+    vec2( 0.34495938,   0.29387760 ),
+    vec2(-0.91588581,   0.45771432 ),
+    vec2(-0.81544232,  -0.87912464 ),
+    vec2(-0.38277543,   0.27676845 ),
+    vec2( 0.97484398,   0.75648379 ),
+    vec2( 0.44323325,  -0.97511554 ),
+    vec2( 0.53742981,  -0.47373420 ),
+    vec2(-0.26496911,  -0.41893023 ),
+    vec2( 0.79197514,   0.19090188 ),
+    vec2(-0.24188840,   0.99706507 ),
+    vec2(-0.81409955,   0.91437590 ),
+    vec2( 0.19984126,   0.78641367 ),
+    vec2( 0.14383161,  -0.14100790 ),
+    vec2( 0.94201624,   0.39906216 ),
+    vec2(-0.94558609,   0.76890725 ),
+    vec2( 0.094184101,  0.92938870 ),
+    vec2(-0.34495938,  -0.29387760 ),
+    vec2( 0.91588581,  -0.45771432 ),
+    vec2( 0.81544232,   0.87912464 ),
+    vec2( 0.38277543,  -0.27676845 ),
+    vec2(-0.97484398,  -0.75648379 ),
+    vec2(-0.44323325,   0.97511554 ),
+    vec2(-0.53742981,   0.47373420 ),
+    vec2( 0.26496911,   0.41893023 ),
+    vec2(-0.79197514,  -0.19090188 ),
+    vec2( 0.24188840,  -0.99706507 ),
+    vec2(-0.81409955,  -0.91437590 ),
+    vec2(-0.19984126,  -0.78641367 ),
+    vec2(-0.14383161,   0.14100790 )
 );
 
 float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
-float get_shadow() {
+float get_shadow(float cos_theta) {
     vec4 frag_pos_light_space = u_light_space * texture(u_position, v_tex_coords);
     vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
     // convert to [0, 1]
@@ -70,7 +102,7 @@ float get_shadow() {
     float closest_depth = texture(u_depth_map, proj_coords.xy).x;
     // fragment depth
     float frag_depth = proj_coords.z;
-    float bias = 0.003;
+    float bias = 0.001 * tan(acos(cos_theta));
     // float shadow = frag_depth - bias > closest_depth ? 1.0 : 0.0;
     float shadow = 0.0;
     vec2 texel_size = vec2(1.0) / textureSize(u_depth_map, 0);
@@ -88,17 +120,22 @@ vec3 get_sunlight() {
 
     vec3 view_dir = normalize(u_view_pos - position);
 
+    vec3 light_dir = normalize(u_sunlight.direction);
+    float cos_theta = dot(normal, -light_dir);
+
     // ambient
-    vec3 ambient = u_sunlight.ambient * texture(u_ssao, v_tex_coords).r;
+    // float ao = texture(u_ssao, v_tex_coords).r;
+    float ao = 1.0;
+    // ao = clamp(ao, 0.5, 1.0);
+    vec3 ambient = u_sunlight.ambient * ao;
     // diffuse
-    vec3 light_dir = normalize(-u_sunlight.direction);
-    vec3 diffuse = max(dot(normal, light_dir), 0.0) * u_sunlight.diffuse;
+    vec3 diffuse = max(cos_theta, 0.0) * u_sunlight.diffuse;
     // specular
-    vec3 reflect_dir = reflect(-light_dir, normal);
-    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
+    vec3 reflect_dir = reflect(light_dir, normal);
+    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 64);
     vec3 specular = spec * u_sunlight.specular;
 
-    vec3 result = ambient + (1.0 - get_shadow()) * (diffuse + specular);
+    vec3 result = ambient + (1.0 - get_shadow(cos_theta)) * (diffuse + specular);
     return result;
 }
 
@@ -107,11 +144,13 @@ void main() {
 
     // ambient, diffuse from sun
     color = vec4(get_sunlight() * object_color, 1.0);
+    // sky if the z > 1.0
     // gamma correction
     float gamma = 1.2;
     color.rgb = pow(color.rgb, vec3(1.0 / gamma));
     // debug
-    if (v_tex_coords.x > 0.5 && v_tex_coords.y > 0.5) {
-        color = vec4(vec3(texture(u_ssao, v_tex_coords * 2.0 - 1.0).r), 1.0);
+    if (v_tex_coords.x > 0.75 && v_tex_coords.y > 0.75) {
+        color = vec4(texture(u_depth_map, v_tex_coords * 4.0 - 2.0).rrr, 1.0);
     }
+    // color = vec4(vec3(texture(u_depth_map, v_tex_coords).x), 1.0);
 }

@@ -26,50 +26,51 @@ uniform vec3[64] u_ssao_samples;
 uniform mat4 u_projection;
 uniform mat4 u_view;
 
-void main() {
-    float radius = 0.35;
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float ssao(vec3 pos, vec3 normal, vec3 rot) {
+    float radius = 0.02;
     float bias = 0.0025;
-    int kernel_size = 16;
+    int kernel_size = 8;
 
-    vec2 noise_scale = vec2(1600.0, 900.0) / 4.0;
-
-    vec3 frag_pos = texture(u_position, v_tex_coords).xyz;
-    frag_pos = (u_view * vec4(frag_pos, 1.0)).xyz;
-    vec3 normal = texture(u_normal, v_tex_coords).xyz;
-    normal = (u_view * vec4(normal, 1.0)).xyz;
-
-    vec3 random_vec = normalize(texture(u_noise, v_tex_coords * noise_scale).xyz);
-
-    vec3 tangent = normalize(random_vec - normal * dot(random_vec, normal));
+    vec3 tangent = normalize(rot - normal * dot(rot, normal));
     vec3 bitangent = cross(normal, tangent);
     mat3 tbn = mat3(tangent, bitangent, normal);
 
-    float occlusion = 0.0;
-
+    float ao = 0.0;
     for (int i = 0; i < kernel_size; ++i) {
         // get sample position
-        vec3 sample_pos = tbn * u_ssao_samples[i];
-        sample_pos = frag_pos + sample_pos * radius;
+        vec3 sample_pos = pos + tbn * u_ssao_samples[int(rand(rot.xy)) * 64] * radius;
 
-        // project sample position onto clip space and then to sample texture
-        vec4 offset = vec4(sample_pos, 1.0);
-        offset = u_projection * offset;
+        vec4 offset = u_projection * vec4(sample_pos, 1.0);
         offset.xy /= offset.w;
         offset.xy = offset.xy * 0.5 + 0.5;
 
-        float sample_depth = (
+        // get actual depth
+        float d = (
             u_view * vec4(texture(u_position, offset.xy).xyz, 1.0)
         ).z;
 
-        // range check & accumulate
-        float range_check = smoothstep(0.0, 1.0, radius / abs(frag_pos.z - sample_depth));
-        occlusion += (sample_depth >= sample_pos.z + bias ? 1.0 : 0.0) * range_check;
-
+        float range_check = smoothstep(0.0, 1.0, radius / abs(pos.z - d));
+        ao += (d >= sample_pos.z + bias ? 1.0 : 0.0) * range_check;
     }
-    occlusion = 1.0 - (occlusion / kernel_size);
-    occlusion = clamp(occlusion, 0.0, 1.0);
-    occlusion = pow(occlusion, 2.0);
+    ao /= float(kernel_size);
+    ao = pow(ao, 2.2);
+    ao = 1.0 - ao;
+    ao = clamp(ao, 0.0, 1.0);
+    return ao;
+}
 
-    color = vec4(vec3(occlusion), 1.0);
+void main() {
+    vec3 pos = texture(u_position, v_tex_coords).xyz;
+    pos = (u_view * vec4(pos, 1.0)).xyz;
+    vec3 n = texture(u_normal, v_tex_coords).xyz;
+    n = (u_view * vec4(n, 1.0)).xyz;
+    vec3 r = texture(u_noise, vec2(rand(pos.xy), rand(pos.yz))).rgb;
+
+    float ao = ssao(pos, n, r);
+    color = vec4(vec3(ao), 1.0);
     // color = vec4(1.0, 0.0, 0.0, 1.0);
 }

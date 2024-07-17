@@ -22,11 +22,13 @@ uniform sampler2D u_ssao;
 void main() {
     vec2 texel_size = 1.0 / vec2(textureSize(u_ssao, 0));
     float result = 0.0;
-    for (int y = -2; y < 2; ++y) {
-        for (int x = -2; x < 2; ++x) {
+    int a = 1;
+    int num_samples = (2 * a + 1) * (2 * a + 1);
+    for (int y = -a; y <= a; ++y) {
+        for (int x = -a; x <= a; ++x) {
             vec2 offset = vec2(float(x), float(y)) * texel_size;
             result += texture(u_ssao, v_tex_coords + offset).r;
         }
     }
-    color = result / (4.0 * 4.0);
+    color = result / float(num_samples);
 }

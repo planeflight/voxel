@@ -5,7 +5,6 @@ using namespace omega;
 Player::Player(const math::vec3 &pos, const math::vec3 &dimens) :
     omega::scene::PerspectiveCamera::PerspectiveCamera(pos),
     dimens(dimens) {
-
 }
 
 void Player::update(f32 dt, f32 gravity) {

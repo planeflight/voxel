@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 project(voxel)
 
@@ -14,10 +14,11 @@ SET (CMAKE_CXX_FLAGS "-Wall -Wextra -Wcast-qual -Wconversion-null -Wformat-secur
 -std=c++20 -fPIC -g")
 
 include_directories(".")
-include_directories("./lib/omega/")
-include_directories("./lib/omega/lib/")
-include_directories("./lib/omega/lib/glad/include/")
-include_directories("./lib/omega/lib/box2d/include/")
+include_directories("./lib/")
+include_directories("../omega/")
+include_directories("../omega/lib/")
+include_directories("../omega/lib/glad/include/")
+include_directories("../omega/lib/box2d/include/")
 
 add_executable(${PROJECT_NAME} ${SRC})
 
@@ -36,11 +37,11 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 target_link_directories(${PROJECT_NAME}
-    PUBLIC lib/omega/build/
-    PUBLIC lib/omega/build/lib/imgui/
-    PUBLIC lib/omega/build/lib/box2d/bin
-    PUBLIC lib/omega/build/lib/glad/
-    PUBLIC lib/omega/build/lib/stb/
-    PUBLIC lib/omega/build/lib/libtmx-parser/
+    PUBLIC ../omega/build/
+    PUBLIC ../omega/build/lib/imgui/
+    PUBLIC ../omega/build/lib/box2d/bin
+    PUBLIC ../omega/build/lib/glad/
+    PUBLIC ../omega/build/lib/stb/
+    PUBLIC ../omega/build/lib/libtmx-parser/
 )
 

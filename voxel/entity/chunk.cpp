@@ -162,7 +162,7 @@ void Chunk::gen_blocks() {
     // initialize with empty blocks
     blocks = new Block[max_cubes];
     if (blocks == nullptr) {
-        omega::util::error("No memory available for blocks!");
+        omega::util::err("No memory available for blocks!");
         return;
     }
     // fill with clear blocks
@@ -178,23 +178,23 @@ void Chunk::gen_blocks() {
     for (size_t z = 0; z < depth; ++z) {
         for (size_t x = 0; x < width; ++x) {
 			blocks[get_index(x, 0, z)].type = BlockType::STONE;
-            if (x % 4 == 0 && z % 4 == 0) {
-                for (int y = 1; y < 3; ++y){
-                    blocks[get_index(x, y, z)].type = BlockType::GRASS;
-                }
+            // if (x % 4 == 0 && z % 4 == 0) {
+            //     for (int y = 1; y < 3; ++y){
+            //         blocks[get_index(x, y, z)].type = BlockType::GRASS;
+            //     }
+            // }
+            f32 x_pos = (position.x * (f32)width + (f32)x);
+            f32 z_pos = (position.z * (f32)depth + (f32)z);
+
+			f32 h = generator->get_height(x_pos, z_pos);
+            h = h * 2.0 - 1.0;
+            h = 30.0f + 30.0f * h;
+            h = omega::math::round(h);
+            h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
+
+            for (u32 y = 1; y <= h; ++y) {
+                blocks[get_index(x, y, z)].type = BlockType::GRASS;
             }
-   //          f32 x_pos = (position.x * (f32)width + (f32)x);
-   //          f32 z_pos = (position.z * (f32)depth + (f32)z);
-			//
-			// f32 h = generator->get_height(x_pos, z_pos);
-   //          h = h * 2.0 - 1.0;
-   //          h = 30.0f + 30.0f * h;
-   //          h = omega::math::round(h);
-   //          h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
-			//
-   //          for (u32 y = 1; y <= h; ++y) {
-   //              blocks[get_index(x, y, z)].type = BlockType::GRASS;
-   //          }
         }
     }
 }
