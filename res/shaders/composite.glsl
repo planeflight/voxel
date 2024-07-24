@@ -96,22 +96,31 @@ float get_shadow(float cos_theta) {
     vec4 frag_pos_light_space = u_light_space * texture(u_position, v_tex_coords);
     vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
     // convert to [0, 1]
-    proj_coords = proj_coords * 0.5 + vec3(0.5);
+    proj_coords = proj_coords * 0.5 + 0.5;
 
     // closest depth to light
     float closest_depth = texture(u_depth_map, proj_coords.xy).x;
     // fragment depth
     float frag_depth = proj_coords.z;
-    float bias = 0.001 * tan(acos(cos_theta));
-    // float shadow = frag_depth - bias > closest_depth ? 1.0 : 0.0;
-    float shadow = 0.0;
-    vec2 texel_size = vec2(1.0) / textureSize(u_depth_map, 0);
-    for (int i = 0; i < POISSON_SAMPLES; ++i) {
-        float d = texture(u_depth_map, proj_coords.xy + poisson_disk[i] * texel_size).x;
-        shadow += (frag_depth - bias > d) ? 1.0 : 0.0;
-    }
+    float bias = 0.0025 * tan(acos(cos_theta));
+    vec2 texel_size = 1. / textureSize(u_depth_map, 0);
 
-    return shadow / POISSON_SAMPLES;
+    float shadow = 0.0;
+    int pcfno = 5;
+    for (int y = -pcfno; y <= pcfno; ++y) {
+        for (int x = -pcfno; x <= pcfno; ++x) {
+            vec2 offset = vec2(x, y);
+            float r = rand(offset * 2.32 + proj_coords.xy);
+            offset = offset * texel_size * r * 1.89;
+            // depth test
+            float d = texture(u_depth_map, proj_coords.xy + offset).x;
+            float s = (frag_depth - bias > d) ? 1. : 0.;
+            shadow += s;
+        }
+    }
+    int total = (pcfno * 2 + 1) * (pcfno * 2 + 1);
+
+    return shadow / total;
 }
 
 vec3 get_sunlight() {
@@ -124,19 +133,26 @@ vec3 get_sunlight() {
     float cos_theta = dot(normal, -light_dir);
 
     // ambient
-    // float ao = texture(u_ssao, v_tex_coords).r;
-    float ao = 1.0;
-    // ao = clamp(ao, 0.5, 1.0);
+    float ao = texture(u_ssao, v_tex_coords).r;
+    ao = clamp(ao, 0.5, 1.0);
     vec3 ambient = u_sunlight.ambient * ao;
     // diffuse
     vec3 diffuse = max(cos_theta, 0.0) * u_sunlight.diffuse;
     // specular
     vec3 reflect_dir = reflect(light_dir, normal);
-    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 64);
+    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
     vec3 specular = spec * u_sunlight.specular;
 
     vec3 result = ambient + (1.0 - get_shadow(cos_theta)) * (diffuse + specular);
     return result;
+}
+
+float map(float x, float a, float b, float c, float d) {
+    return c + (x - a) * (d - c) / (b - a);
+}
+
+vec2 map2D(vec2 x, vec2 a, vec2 b, vec2 c, vec2 d) {
+    return c + (x - a) * (d - c) / (b - a);
 }
 
 void main() {
@@ -150,7 +166,6 @@ void main() {
     color.rgb = pow(color.rgb, vec3(1.0 / gamma));
     // debug
     if (v_tex_coords.x > 0.75 && v_tex_coords.y > 0.75) {
-        color = vec4(texture(u_depth_map, v_tex_coords * 4.0 - 2.0).rrr, 1.0);
+        color = vec4(texture(u_ssao, map2D(v_tex_coords, vec2(0.75), vec2(1.), vec2(0.), vec2(1.))).rrr, 1.0);
     }
-    // color = vec4(vec3(texture(u_depth_map, v_tex_coords).x), 1.0);
 }
