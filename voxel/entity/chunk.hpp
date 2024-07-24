@@ -39,8 +39,12 @@ class Chunk {
     void render(float dt);
     void init_block(size_t x, size_t y, size_t z, int8_t type);
 
-    const glm::vec3 &get_position() const { return position; }
-    void set_position(const glm::vec3 &position) { this->position = position; }
+    const glm::vec3 &get_position() const {
+        return position;
+    }
+    void set_position(const glm::vec3 &position) {
+        this->position = position;
+    }
 
     constexpr static uint32_t width = 15;  // x axis
     constexpr static uint32_t depth = 15;  // z axis
@@ -69,11 +73,14 @@ class Chunk {
         y = idx / width;
         x = idx % width;
     }
- 
+
     void gen_blocks();
     void load_mesh();
 
-    void get_face_directions(size_t x, size_t y, size_t z, std::vector<Direction> &directions);
+    void get_face_directions(size_t x,
+                             size_t y,
+                             size_t z,
+                             std::vector<Direction> &directions);
 
     // GL render settings
     constexpr static uint32_t vertex_attr_count = 1; // data per vertex

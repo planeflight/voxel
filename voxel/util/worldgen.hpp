@@ -8,13 +8,14 @@
 
 class WorldGen {
   public:
-    WorldGen(const WorldGen&) = delete;
-    WorldGen(WorldGen&&) = delete;
-    WorldGen operator=(const WorldGen&) = delete;
-    WorldGen operator=(WorldGen&&) = delete;
+    WorldGen(const WorldGen &) = delete;
+    WorldGen(WorldGen &&) = delete;
+    WorldGen operator=(const WorldGen &) = delete;
+    WorldGen operator=(WorldGen &&) = delete;
 
     static WorldGen *instance() {
-        static omega::util::uptr<WorldGen> i = omega::util::uptr<WorldGen>(new WorldGen());
+        static omega::util::uptr<WorldGen> i =
+            omega::util::uptr<WorldGen>(new WorldGen());
         return i.get();
     }
 
@@ -32,7 +33,6 @@ class WorldGen {
         e = glm::clamp(e, 0.0f, 1.0f);
         f32 e_height = get_height_from_points(ero, e);
 
-
         return c_height * 0.33f + e_height * 0.33f + p_height * 0.33f;
     }
 
@@ -40,10 +40,10 @@ class WorldGen {
         static constexpr f32 factor = 1.0f / 4.0f;
         return height_change().noise2D(x * factor, y * factor);
     }
-    
+
   private:
     using Noise = siv::BasicPerlinNoise<f32>;
-     
+
     static Noise get_noise_function() {
         siv::PerlinNoise::seed_type seed = omega::util::random<u32>(0, 1000000);
         return siv::BasicPerlinNoise<f32>{seed};
@@ -69,40 +69,43 @@ class WorldGen {
         return noise;
     }
 
-    f32 get_height_from_points(const std::vector<std::pair<f32, f32>>& values, f32 noise_val) {
+    f32 get_height_from_points(const std::vector<std::pair<f32, f32>> &values,
+                               f32 noise_val) {
         size_t i = 0;
         for (; i < values.size() - 1; ++i) {
-            if (values[i].first <= noise_val && 
+            if (values[i].first <= noise_val &&
                 noise_val <= values[i + 1].first) {
                 break;
             }
         }
-        return glm::lerp(
-            values[i].second, 
-            values[i + 1].second,
-            (noise_val - values[i].first) / (values[i + 1].first - values[i].first)
-        );
+        return glm::lerp(values[i].second,
+                         values[i + 1].second,
+                         (noise_val - values[i].first) /
+                             (values[i + 1].first - values[i].first));
     }
 
     f32 get_continental(f32 x, f32 y) {
         static constexpr f32 factor = 1.0f / 256.0f;
         static constexpr u32 octaves = 4;
         static constexpr f32 amplitude = 0.5f;
-        return continentalness().octave2D_11(x * factor, y * factor, octaves, amplitude);
+        return continentalness().octave2D_11(
+            x * factor, y * factor, octaves, amplitude);
     }
 
     f32 get_peaks_valleys(f32 x, f32 y) {
         static constexpr f32 factor = 1.0f / 64.0f;
         static constexpr u32 octaves = 5;
         static constexpr f32 amplitude = 0.4f;
-        return peaks_valleys().octave2D_11(x * factor, y * factor, octaves, amplitude);
+        return peaks_valleys().octave2D_11(
+            x * factor, y * factor, octaves, amplitude);
     }
 
     f32 get_erosion(f32 x, f32 y) {
         static constexpr f32 factor = 1.0f / 512.0f;
         static constexpr u32 octaves = 2;
         static constexpr f32 amplitude = 0.2f;
-        return erosion().octave2D_11(x * factor, y * factor, octaves, amplitude);
+        return erosion().octave2D_11(
+            x * factor, y * factor, octaves, amplitude);
     }
 
     WorldGen() {
@@ -128,7 +131,7 @@ class WorldGen {
         ero.push_back({0.9058f, 0.34430f});
         ero.push_back({0.9215f, 0.09783f});
         ero.push_back({1.0f, 0.03986f});
-        
+
         // generate peaks and valleys points
         /* pv.push_back({0.0f, 0.0f}); */
         /* pv.push_back({0.0699f, 0.0f}); */
@@ -148,9 +151,9 @@ class WorldGen {
         pv.push_back({1.0f, 0.94815f});
     }
 
-    std::vector<std::pair<f32, f32>> cont;  // continentalness (cliffs/plateaus)
+    std::vector<std::pair<f32, f32>> cont; // continentalness (cliffs/plateaus)
     std::vector<std::pair<f32, f32>> ero;  // erosion (flatness)
-    std::vector<std::pair<f32, f32>> pv;  // peaks and valleys
+    std::vector<std::pair<f32, f32>> pv;   // peaks and valleys
 };
 
 #endif // VOXEL_UTIL_WORLDGEN_HPP

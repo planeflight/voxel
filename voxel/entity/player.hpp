@@ -13,10 +13,9 @@ class Player : public omega::scene::PerspectiveCamera {
     void handle_collisions(f32 dt, Chunk *chunk);
 
     omega::math::vec3 velocity{0.0f};
+
   private:
     omega::math::vec3 dimens{1.0f};
-
-
 };
 
 #endif // VOXEL_ENTITY_PLAYER_HPP

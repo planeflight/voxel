@@ -11,8 +11,8 @@ template <typename T>
 struct AABB {
     T position, dimens;
 
-    AABB(const T& pos) : position(pos), dimens(1.0) {}
-    AABB(const T& pos, const T& dimens) : position(pos), dimens(dimens) {}
+    AABB(const T &pos) : position(pos), dimens(1.0) {}
+    AABB(const T &pos, const T &dimens) : position(pos), dimens(dimens) {}
 
     static AABB<T> unit() {
         return AABB<T>(0.0);
@@ -22,7 +22,7 @@ struct AABB {
         position += b.position;
     }
 
-    void scale(const T& sc) {
+    void scale(const T &sc) {
         dimens *= sc;
     }
 

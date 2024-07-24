@@ -1,9 +1,12 @@
 #include "voxel/entity/chunk.hpp"
+
 #include "voxel/entity/block.hpp"
 #include "voxel/util/worldgen.hpp"
 
-
-static void compress_vertex(const glm::ivec3 &pos, Direction normal, const glm::ivec2 &tex_uv, Vertex &vertex) {
+static void compress_vertex(const glm::ivec3 &pos,
+                            Direction normal,
+                            const glm::ivec2 &tex_uv,
+                            Vertex &vertex) {
     uint32_t data = 0;
     // set position
     data |= (pos.x << 0) & 0xF;
@@ -18,7 +21,9 @@ static void compress_vertex(const glm::ivec3 &pos, Direction normal, const glm::
     vertex.data = data;
 }
 
-static void create_quad(size_t x, size_t y, size_t z,
+static void create_quad(size_t x,
+                        size_t y,
+                        size_t z,
                         int8_t type,
                         std::vector<Quad> &quads,
                         Direction direction) {
@@ -45,60 +50,60 @@ static void create_quad(size_t x, size_t y, size_t z,
 
     Quad q;
     switch (direction) {
-    case Direction::left: {
-        compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[0]);
-        compress_vertex(vertex_positions[4], direction, tex_coord_br, q[1]);
-        compress_vertex(vertex_positions[7], direction, tex_coord_tr, q[2]);
-        compress_vertex(vertex_positions[7], direction, tex_coord_tr, q[3]);
-        compress_vertex(vertex_positions[3], direction, tex_coord_tl, q[4]);
-        compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[5]);
-        break;
-    }
-    case Direction::right: {
-        compress_vertex(vertex_positions[5], direction, tex_coord_bl, q[0]);
-        compress_vertex(vertex_positions[1], direction, tex_coord_br, q[1]);
-        compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[2]);
-        compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[3]);
-        compress_vertex(vertex_positions[6], direction, tex_coord_tl, q[4]);
-        compress_vertex(vertex_positions[5], direction, tex_coord_bl, q[5]);
-        break;
-    }
-    case Direction::top: {
-        compress_vertex(vertex_positions[7], direction, tex_coord_bl, q[0]);
-        compress_vertex(vertex_positions[6], direction, tex_coord_br, q[1]);
-        compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[2]);
-        compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[3]);
-        compress_vertex(vertex_positions[3], direction, tex_coord_tl, q[4]);
-        compress_vertex(vertex_positions[7], direction, tex_coord_bl, q[5]);
-        break;
-    }
-    case Direction::bottom: {
-        compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[0]);
-        compress_vertex(vertex_positions[5], direction, tex_coord_br, q[1]);
-        compress_vertex(vertex_positions[1], direction, tex_coord_tr, q[2]);
-        compress_vertex(vertex_positions[1], direction, tex_coord_tr, q[3]);
-        compress_vertex(vertex_positions[0], direction, tex_coord_tl, q[4]);
-        compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[5]);
-        break;
-    }
-    case Direction::forward: {
-        compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[0]);
-        compress_vertex(vertex_positions[5], direction, tex_coord_br, q[1]);
-        compress_vertex(vertex_positions[6], direction, tex_coord_tr, q[2]);
-        compress_vertex(vertex_positions[6], direction, tex_coord_tr, q[3]);
-        compress_vertex(vertex_positions[7], direction, tex_coord_tl, q[4]);
-        compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[5]);
-        break;
-    }
-    case Direction::backward: {
-        compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[0]);
-        compress_vertex(vertex_positions[1], direction, tex_coord_br, q[1]);
-        compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[2]);
-        compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[3]);
-        compress_vertex(vertex_positions[3], direction, tex_coord_tl, q[4]);
-        compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[5]);
-        break;
-    }
+        case Direction::left: {
+            compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[0]);
+            compress_vertex(vertex_positions[4], direction, tex_coord_br, q[1]);
+            compress_vertex(vertex_positions[7], direction, tex_coord_tr, q[2]);
+            compress_vertex(vertex_positions[7], direction, tex_coord_tr, q[3]);
+            compress_vertex(vertex_positions[3], direction, tex_coord_tl, q[4]);
+            compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[5]);
+            break;
+        }
+        case Direction::right: {
+            compress_vertex(vertex_positions[5], direction, tex_coord_bl, q[0]);
+            compress_vertex(vertex_positions[1], direction, tex_coord_br, q[1]);
+            compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[2]);
+            compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[3]);
+            compress_vertex(vertex_positions[6], direction, tex_coord_tl, q[4]);
+            compress_vertex(vertex_positions[5], direction, tex_coord_bl, q[5]);
+            break;
+        }
+        case Direction::top: {
+            compress_vertex(vertex_positions[7], direction, tex_coord_bl, q[0]);
+            compress_vertex(vertex_positions[6], direction, tex_coord_br, q[1]);
+            compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[2]);
+            compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[3]);
+            compress_vertex(vertex_positions[3], direction, tex_coord_tl, q[4]);
+            compress_vertex(vertex_positions[7], direction, tex_coord_bl, q[5]);
+            break;
+        }
+        case Direction::bottom: {
+            compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[0]);
+            compress_vertex(vertex_positions[5], direction, tex_coord_br, q[1]);
+            compress_vertex(vertex_positions[1], direction, tex_coord_tr, q[2]);
+            compress_vertex(vertex_positions[1], direction, tex_coord_tr, q[3]);
+            compress_vertex(vertex_positions[0], direction, tex_coord_tl, q[4]);
+            compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[5]);
+            break;
+        }
+        case Direction::forward: {
+            compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[0]);
+            compress_vertex(vertex_positions[5], direction, tex_coord_br, q[1]);
+            compress_vertex(vertex_positions[6], direction, tex_coord_tr, q[2]);
+            compress_vertex(vertex_positions[6], direction, tex_coord_tr, q[3]);
+            compress_vertex(vertex_positions[7], direction, tex_coord_tl, q[4]);
+            compress_vertex(vertex_positions[4], direction, tex_coord_bl, q[5]);
+            break;
+        }
+        case Direction::backward: {
+            compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[0]);
+            compress_vertex(vertex_positions[1], direction, tex_coord_br, q[1]);
+            compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[2]);
+            compress_vertex(vertex_positions[2], direction, tex_coord_tr, q[3]);
+            compress_vertex(vertex_positions[3], direction, tex_coord_tl, q[4]);
+            compress_vertex(vertex_positions[0], direction, tex_coord_bl, q[5]);
+            break;
+        }
     }
     quads.push_back(q);
 }
@@ -142,12 +147,16 @@ void Chunk::init_block(size_t x, size_t y, size_t z, int8_t type) {
 
 void Chunk::remove_block(size_t x, size_t y, size_t z) {
     size_t idx = get_index(x, y, z);
-    if (idx < width * height * depth) {blocks[idx].type = BlockType::NONE;}
+    if (idx < width * height * depth) {
+        blocks[idx].type = BlockType::NONE;
+    }
 }
 
 void Chunk::add_block(size_t x, size_t y, size_t z, int8_t type) {
     size_t idx = get_index(x, y, z);
-    if (idx < width * height * depth) {blocks[idx].type = (BlockType)type;}
+    if (idx < width * height * depth) {
+        blocks[idx].type = (BlockType)type;
+    }
 }
 
 void Chunk::update_chunk() {
@@ -177,24 +186,24 @@ void Chunk::gen_blocks() {
     auto *generator = WorldGen::instance();
     for (size_t z = 0; z < depth; ++z) {
         for (size_t x = 0; x < width; ++x) {
-			blocks[get_index(x, 0, z)].type = BlockType::STONE;
-            // if (x % 4 == 0 && z % 4 == 0) {
-            //     for (int y = 1; y < 3; ++y){
-            //         blocks[get_index(x, y, z)].type = BlockType::GRASS;
-            //     }
-            // }
-            f32 x_pos = (position.x * (f32)width + (f32)x);
-            f32 z_pos = (position.z * (f32)depth + (f32)z);
-
-			f32 h = generator->get_height(x_pos, z_pos);
-            h = h * 2.0 - 1.0;
-            h = 30.0f + 30.0f * h;
-            h = omega::math::round(h);
-            h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
-
-            for (u32 y = 1; y <= h; ++y) {
-                blocks[get_index(x, y, z)].type = BlockType::GRASS;
+            blocks[get_index(x, 0, z)].type = BlockType::GRASS;
+            if (x % 4 == 0 && z % 4 == 0) {
+                for (int y = 1; y < 3; ++y) {
+                    blocks[get_index(x, y, z)].type = BlockType::GRASS;
+                }
             }
+            // f32 x_pos = (position.x * (f32)width + (f32)x);
+            // f32 z_pos = (position.z * (f32)depth + (f32)z);
+            //
+            // f32 h = generator->get_height(x_pos, z_pos);
+            // h = h * 2.0 - 1.0;
+            // h = 5.0f + 5.0f * h;
+            // h = omega::math::round(h);
+            // h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
+            //
+            // for (u32 y = 1; y <= h; ++y) {
+            //     blocks[get_index(x, y, z)].type = BlockType::GRASS;
+            // }
         }
     }
 }
@@ -208,13 +217,17 @@ void Chunk::load_mesh() {
         }
     }
     // send all quads to the GPU
-    vbo = omega::util::create_uptr<omega::gfx::VertexBuffer>(quads_to_add.data(), sizeof(Quad) * quads_to_add.size());
+    vbo = omega::util::create_uptr<omega::gfx::VertexBuffer>(
+        quads_to_add.data(), sizeof(Quad) * quads_to_add.size());
     omega::gfx::VertexBufferLayout layout;
     layout.push(GL_INT, 1); // data
     vao->add_buffer(*vbo, layout);
 }
 
-void Chunk::get_face_directions(size_t x, size_t y, size_t z, std::vector<Direction> &directions) {
+void Chunk::get_face_directions(size_t x,
+                                size_t y,
+                                size_t z,
+                                std::vector<Direction> &directions) {
     // handle z axis faces
     // check back face, z - 1
     if (z == 0 || !blocks[get_index(x, y, z - 1)].is_active()) {
@@ -245,4 +258,3 @@ void Chunk::get_face_directions(size_t x, size_t y, size_t z, std::vector<Direct
         directions.push_back(Direction::bottom);
     }
 }
-

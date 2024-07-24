@@ -1,8 +1,8 @@
 #ifndef VOXEL_ENTITY_BLOCK_HPP
 #define VOXEL_ENTITY_BLOCK_HPP
 
-#include "omega/util/types.hpp"
 #include "omega/math/math.hpp"
+#include "omega/util/types.hpp"
 
 enum class BlockType : i8 {
     NONE = -1,
