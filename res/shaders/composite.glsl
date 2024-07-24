@@ -160,12 +160,19 @@ void main() {
 
     // ambient, diffuse from sun
     color = vec4(get_sunlight() * object_color, 1.0);
-    // sky if the z > 1.0
+
+    // calculate sky color
+    // HACK: bad hack should be: sky if the z > 1.0
+    // assumes no object will ever be fully black
+    float s = 0.05;
+    if (object_color.r < s && object_color.g < s && object_color.b < s) {
+        color = vec4(135., 206., 235., 255.) / 255.;
+    }
     // gamma correction
-    float gamma = 1.2;
+    float gamma = 1.2; // actual gamma = 2.2
     color.rgb = pow(color.rgb, vec3(1.0 / gamma));
-    // debug
+    // NOTE: debug
     if (v_tex_coords.x > 0.75 && v_tex_coords.y > 0.75) {
-        color = vec4(texture(u_ssao, map2D(v_tex_coords, vec2(0.75), vec2(1.), vec2(0.), vec2(1.))).rrr, 1.0);
+        color = vec4(texture(u_depth_map, map2D(v_tex_coords, vec2(0.75), vec2(1.), vec2(0.), vec2(1.))).rrr, 1.0);
     }
 }
