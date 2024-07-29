@@ -17,11 +17,12 @@
 #include "voxel/entity/chunk.hpp"
 #include "voxel/entity/player.hpp"
 #include "voxel/entity/sun.hpp"
+#include "voxel/entity/water.hpp"
 
 using namespace omega;
 
 constexpr static f32 fov = 45.0f;
-constexpr static f32 far = 128.0f;
+constexpr static f32 far = 124.0f;
 constexpr static f32 near = 1.0f;
 
 struct VoxelGame : public core::App {
@@ -33,7 +34,7 @@ struct VoxelGame : public core::App {
         gfx::set_depth_test(true);
 
         globals->input.set_relative_mouse_mode(true);
-        player = util::create_uptr<Player>(math::vec3(0.0f, 0.0f, 0.0f),
+        player = util::create_uptr<Player>(math::vec3(500.0f, 30.0f, 500.0f),
                                            math::vec3(1.0f));
         player->set_projection(fov, 1600.0f / 900.0f, near, far);
         // create sun
@@ -55,6 +56,9 @@ struct VoxelGame : public core::App {
             }
         }
 
+        // water
+        water = util::create_uptr<Water>();
+
         // load shaders
         globals->asset_manager.load_shader("block", "./res/shaders/block.glsl");
         globals->asset_manager.load_shader("composite",
@@ -64,10 +68,15 @@ struct VoxelGame : public core::App {
         globals->asset_manager.load_shader("ssao", "./res/shaders/ssao.glsl");
         globals->asset_manager.load_shader("ssao_blur",
                                            "./res/shaders/ssao_blur.glsl");
+        globals->asset_manager.load_shader("water", "./res/shaders/water.glsl");
 
         // load textures
         globals->asset_manager.load_texture("block",
                                             "./res/textures/blocks.png");
+        globals->asset_manager.load_texture("noise",
+                                            "./res/textures/noise.png",
+                                            gfx::texture::TextureParam::LINEAR,
+                                            gfx::texture::TextureParam::LINEAR);
 
         // load SSAO noise texture
         auto *noise_texture = globals->asset_manager.load_empty_texture(
@@ -190,6 +199,40 @@ struct VoxelGame : public core::App {
              .draw_buffer = false});
         shadow_map = util::create_uptr<gfx::FrameBuffer>(
             shadow_map_size, shadow_map_size, attachments);
+
+        // create water deferred renderer
+        // only care about the position and normal, color will blended with
+        // color of the actual scene/blocks
+        attachments.clear();
+        attachments.push_back({
+            .width = 1600,
+            .height = 900,
+            .name = "position",
+            .internal_fmt = gfx::texture::TextureFormat::RGBA_32F,
+            .external_fmt = gfx::texture::TextureFormat::RGBA,
+            .min_filter = gfx::texture::TextureParam::LINEAR,
+            .mag_filter = gfx::texture::TextureParam::LINEAR,
+        });
+        attachments.push_back({
+            .width = 1600,
+            .height = 900,
+            .name = "normal",
+            .internal_fmt = gfx::texture::TextureFormat::RGBA_32F,
+            .external_fmt = gfx::texture::TextureFormat::RGBA,
+            .min_filter = gfx::texture::TextureParam::LINEAR,
+            .mag_filter = gfx::texture::TextureParam::LINEAR,
+        });
+        attachments.push_back({
+            .width = 1600,
+            .height = 900,
+            .name = "color_spec",
+            .internal_fmt = gfx::texture::TextureFormat::RGBA,
+            .external_fmt = gfx::texture::TextureFormat::RGBA,
+            .min_filter = gfx::texture::TextureParam::LINEAR,
+            .mag_filter = gfx::texture::TextureParam::LINEAR,
+        });
+        water_dfr = util::create_uptr<gfx::renderer::DeferredRenderer>(
+            1600, 900, attachments);
     }
 
     void render(f32 dt) override {
@@ -215,6 +258,27 @@ struct VoxelGame : public core::App {
                 shader->set_uniform_3f("u_chunk_offset", chunk->get_position());
                 chunk->render(dt);
             }
+            shader->unbind();
+        });
+
+        water_dfr->geometry_pass([&]() {
+            // render water to separate gbuffer now
+            gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+            glClearDepth(1.0f);
+            gfx::clear_buffer(OMEGA_GL_COLOR_BUFFER_BIT |
+                              OMEGA_GL_DEPTH_BUFFER_BIT);
+            auto *shader = globals->asset_manager.get_shader("water");
+            shader->bind();
+            shader->set_uniform_1f("u_height", Water::height);
+            shader->set_uniform_mat4f("u_view", player->get_view_matrix());
+            shader->set_uniform_mat4f("u_projection",
+                                      player->get_projection_matrix());
+            shader->set_uniform_1f("u_time",
+                                   omega::util::time::get_time<f32>());
+            shader->set_uniform_2f(
+                "u_cam_pos", player->position.x, player->position.z);
+
+            water->render();
             shader->unbind();
         });
 
@@ -295,6 +359,10 @@ struct VoxelGame : public core::App {
             fbo->get_attachment("position").bind(0);
             fbo->get_attachment("normal").bind(1);
             fbo->get_attachment("color_spec").bind(2);
+            // bind water gbuffer textures
+            water_dfr->gbuffer->get_attachment("position").bind(5);
+            water_dfr->gbuffer->get_attachment("normal").bind(6);
+            water_dfr->gbuffer->get_attachment("color_spec").bind(7);
 
             // bind shadow map texture
             shadow_map->get_attachment("shadow_map").bind(3);
@@ -307,6 +375,9 @@ struct VoxelGame : public core::App {
             composite_shader->set_uniform_1i("u_color", 2);
             composite_shader->set_uniform_1i("u_depth_map", 3);
             composite_shader->set_uniform_1i("u_ssao", 4);
+            composite_shader->set_uniform_1i("u_water_position", 5);
+            composite_shader->set_uniform_1i("u_water_normal", 6);
+            composite_shader->set_uniform_1i("u_water_color", 7);
 
             composite_shader->set_uniform_3f("u_view_pos", player->position);
             composite_shader->set_uniform_mat4f(
@@ -320,10 +391,18 @@ struct VoxelGame : public core::App {
                                              sun->diffuse);
             composite_shader->set_uniform_3f("u_sunlight.specular",
                                              sun->diffuse);
+            composite_shader->set_uniform_1f("u_time",
+                                             util::time::get_time<f32>());
         });
+        ImGui::Begin("Debug");
+        ImGui::Text("player pos: %.2f %.2f %.2f",
+                    player->position.x,
+                    player->position.y,
+                    player->position.z);
+        ImGui::End();
     }
     static constexpr u8 chunk_active = 95;
-    float chunk_load_time = 0.0f;
+    f32 chunk_load_time = 0.0f;
     u32 chunks_loaded = 0;
 
     // map of taken chunks for constant search time
@@ -343,13 +422,14 @@ struct VoxelGame : public core::App {
         const static f32 sin_pi_over_8 = math::sin(math::radians(fov / 2.0f));
 
         // update frequency with texels
-        f32 voxels = 4.0f;
+        f32 voxels = 3.0f;
         auto cam_pos_round = math::round(player->position / voxels) * voxels;
-        auto cam_front_round =
-            math::round(player->get_front() / voxels) * voxels;
+        auto cam_front_round = player->get_front();
 
         // clamp camera position to positive coordinates
-        math::clamp(player->position, math::vec3(0.0f), player->position);
+        if (player->position.x < 0.0f) player->position.x = 0.0f;
+        if (player->position.y < 0.0f) player->position.y = 0.0f;
+        if (player->position.z < 0.0f) player->position.z = 0.0f;
 
         // check if the camera moved in position or front
         if (cam_last_position == cam_pos_round &&
@@ -369,7 +449,7 @@ struct VoxelGame : public core::App {
             // short side = 2rsin(fov/2)
             const f32 long_side = far;
             const f32 short_side =
-                2.0f * long_side *
+                2.5f * long_side *
                 sin_pi_over_8; // INFO: can use 2.5 instead to avoid seeing
                                // chunk loading/reloading
 
@@ -430,6 +510,11 @@ struct VoxelGame : public core::App {
         // round to the nearest n voxels to avoid updating too frequently
         cam_last_position = math::round(player->position / voxels) * voxels;
         cam_last_forward = math::round(player->get_front() / voxels) * voxels;
+
+        // update the day/night cycles
+        // f32 t = util::time::get_time<f32>();
+        // sun->direction.x = glm::cos(t * 0.04);
+        // sun->direction.y = -glm::sin(t * 0.04);
     }
 
     void add_chunk(i32 x, i32 y, i32 z) {
@@ -496,10 +581,12 @@ struct VoxelGame : public core::App {
     util::uptr<Sun> sun = nullptr;
     util::uptr<core::Viewport> viewport = nullptr;
     std::vector<util::sptr<Chunk>> chunks;
+    util::uptr<Water> water = nullptr;
 
-    constexpr static float player_speed = 10.0f;
+    constexpr static f32 player_speed = 10.0f;
 
     util::uptr<gfx::renderer::DeferredRenderer> dfr = nullptr;
+    util::uptr<gfx::renderer::DeferredRenderer> water_dfr = nullptr;
     util::uptr<gfx::FrameBuffer> shadow_map = nullptr;
 };
 

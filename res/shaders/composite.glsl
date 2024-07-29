@@ -36,57 +36,11 @@ struct DirectionLight {
 uniform vec3 u_view_pos;
 uniform DirectionLight u_sunlight;
 
-const int POISSON_SAMPLES = 32;
-vec2 poisson_disk[POISSON_SAMPLES] = vec2[]( 
-    // vec2( -0.94201624, -0.39906216 ), 
-    // vec2( 0.94558609, -0.76890725 ), 
-    // vec2( -0.094184101, -0.92938870 ), 
-    // vec2( 0.34495938, 0.29387760 ), 
-    // vec2( -0.91588581, 0.45771432 ), 
-    // vec2( -0.81544232, -0.87912464 ), 
-    // vec2( -0.38277543, 0.27676845 ), 
-    // vec2( 0.97484398, 0.75648379 ), 
-    // vec2( 0.44323325, -0.97511554 ), 
-    // vec2( 0.53742981, -0.47373420 ), 
-    // vec2( -0.26496911, -0.41893023 ), 
-    // vec2( 0.79197514, 0.19090188 ), 
-    // vec2( -0.24188840, 0.99706507 ), 
-    // vec2( -0.81409955, 0.91437590 ), 
-    // vec2( 0.19984126, 0.78641367 ), 
-    // vec2( 0.14383161, -0.14100790 ) 
-    vec2(-0.94201624,  -0.39906216 ),
-    vec2( 0.94558609,  -0.76890725 ),
-    vec2(-0.094184101, -0.92938870 ),
-    vec2( 0.34495938,   0.29387760 ),
-    vec2(-0.91588581,   0.45771432 ),
-    vec2(-0.81544232,  -0.87912464 ),
-    vec2(-0.38277543,   0.27676845 ),
-    vec2( 0.97484398,   0.75648379 ),
-    vec2( 0.44323325,  -0.97511554 ),
-    vec2( 0.53742981,  -0.47373420 ),
-    vec2(-0.26496911,  -0.41893023 ),
-    vec2( 0.79197514,   0.19090188 ),
-    vec2(-0.24188840,   0.99706507 ),
-    vec2(-0.81409955,   0.91437590 ),
-    vec2( 0.19984126,   0.78641367 ),
-    vec2( 0.14383161,  -0.14100790 ),
-    vec2( 0.94201624,   0.39906216 ),
-    vec2(-0.94558609,   0.76890725 ),
-    vec2( 0.094184101,  0.92938870 ),
-    vec2(-0.34495938,  -0.29387760 ),
-    vec2( 0.91588581,  -0.45771432 ),
-    vec2( 0.81544232,   0.87912464 ),
-    vec2( 0.38277543,  -0.27676845 ),
-    vec2(-0.97484398,  -0.75648379 ),
-    vec2(-0.44323325,   0.97511554 ),
-    vec2(-0.53742981,   0.47373420 ),
-    vec2( 0.26496911,   0.41893023 ),
-    vec2(-0.79197514,  -0.19090188 ),
-    vec2( 0.24188840,  -0.99706507 ),
-    vec2(-0.81409955,  -0.91437590 ),
-    vec2(-0.19984126,  -0.78641367 ),
-    vec2(-0.14383161,   0.14100790 )
-);
+uniform sampler2D u_water_position;
+uniform sampler2D u_water_normal;
+uniform sampler2D u_water_color;
+
+uniform float u_time;
 
 float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -123,9 +77,9 @@ float get_shadow(float cos_theta) {
     return shadow / total;
 }
 
-vec3 get_sunlight() {
-    vec3 position = texture(u_position, v_tex_coords).rgb;
-    vec3 normal = texture(u_normal, v_tex_coords).rgb;
+vec3 get_sunlight(vec3 position, vec3 normal) {
+    // vec3 position = texture(u_position, v_tex_coords).rgb;
+    // vec3 normal = texture(u_normal, v_tex_coords).rgb;
 
     vec3 view_dir = normalize(u_view_pos - position);
 
@@ -147,6 +101,25 @@ vec3 get_sunlight() {
     return result;
 }
 
+vec3 get_water(vec3 position, vec3 normal) {
+    vec3 view_dir = normalize(u_view_pos - position);
+
+    vec3 light_dir = normalize(u_sunlight.direction);
+    float cos_theta = dot(normal, -light_dir);
+
+    // ambient
+    vec3 ambient = u_sunlight.ambient;
+    // diffuse
+    vec3 diffuse = max(cos_theta, 0.0) * u_sunlight.diffuse;
+    // specular
+    vec3 reflect_dir = reflect(light_dir, normal);
+    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 8.);
+    vec3 specular = spec * u_sunlight.specular * 0.2;
+
+    vec3 result = ambient + diffuse + specular;
+    return result;
+}
+
 float map(float x, float a, float b, float c, float d) {
     return c + (x - a) * (d - c) / (b - a);
 }
@@ -155,24 +128,72 @@ vec2 map2D(vec2 x, vec2 a, vec2 b, vec2 c, vec2 d) {
     return c + (x - a) * (d - c) / (b - a);
 }
 
+float dist_sq(vec3 a, vec3 b) {
+    vec3 v = a - b;
+    return dot(v, v);
+}
+
 void main() {
+    const vec3 sky_color = vec3(135., 206., 235.) / 255.;
+    // block position
+    vec3 pos = texture(u_position, v_tex_coords).xyz;
+    vec3 normal = texture(u_normal, v_tex_coords).xyz;
     vec3 object_color = texture(u_color, v_tex_coords).rgb;
 
-    // ambient, diffuse from sun
-    color = vec4(get_sunlight() * object_color, 1.0);
+    // block lighting/final color
+    vec3 block_lighting = get_sunlight(pos, normal) * object_color;
+
+    // water position
+    vec3 water_pos = texture(u_water_position, v_tex_coords).xyz;
+    vec3 water_normal = texture(u_water_normal, v_tex_coords).xyz;
+    vec3 water_color = texture(u_water_color, v_tex_coords).rgb;
+    vec3 water_lighting = get_water(water_pos, water_normal) * water_color;
+
+    // calculate the distance from the point to the camera
+    float bd = dist_sq(pos, u_view_pos);
+    float wd = dist_sq(water_pos, u_view_pos);
+
+    // water is closer to camera & make sure there's actually water there
+    if (wd < bd && water_color.rgb != vec3(0.)) {
+        // mix the block and water lighting
+        // the more specular the water, the less it should be transparent
+        float blend = water_lighting.r + water_lighting.g + water_lighting.b;
+        blend *= 0.33;
+        blend *= 0.5;
+        color.rgb = mix(block_lighting, water_lighting, 0.5 + blend);
+        // edges between the block and the water
+        float dist = abs(bd - wd);
+        float r = 5;
+        color.rgb += (1. - smoothstep(0., r, dist)) * 0.3;
+    } else {
+        color.rgb = block_lighting;
+    }
+    color.a = 1.;
 
     // calculate sky color
     // HACK: bad hack should be: sky if the z > 1.0
     // assumes no object will ever be fully black
-    float s = 0.05;
+    float s = 0.1;
     if (object_color.r < s && object_color.g < s && object_color.b < s) {
-        color = vec4(135., 206., 235., 255.) / 255.;
+        color = vec4(sky_color, 1.);
     }
+
+    // fog
+    float fog_max_dist = 180.;
+    float fog_min_dist = 100.;
+    vec4 fog_color = vec4(sky_color, 1.0);
+
+    float dist = length(pos - u_view_pos);
+    float fog_factor = (fog_max_dist - dist) / (fog_max_dist - fog_min_dist);
+    fog_factor = clamp(fog_factor, 0.0, 1.0);
+
+    color = mix(fog_color, color, fog_factor);
+    // NOTE: debug
+    // if (v_tex_coords.x > 0.75 && v_tex_coords.y > 0.75) {
+    //     color = vec4(texture(u_depth_map, map2D(v_tex_coords, vec2(0.75), vec2(1.), vec2(0.), vec2(1.))).rrr, 1.0);
+    // }
+
     // gamma correction
     float gamma = 1.2; // actual gamma = 2.2
     color.rgb = pow(color.rgb, vec3(1.0 / gamma));
-    // NOTE: debug
-    if (v_tex_coords.x > 0.75 && v_tex_coords.y > 0.75) {
-        color = vec4(texture(u_depth_map, map2D(v_tex_coords, vec2(0.75), vec2(1.), vec2(0.), vec2(1.))).rrr, 1.0);
-    }
 }

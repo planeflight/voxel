@@ -5,9 +5,12 @@
 
 #include "noise/perlin_noise.h"
 #include "omega/util/util.hpp"
+#include "voxel/entity/block.hpp"
 
 class WorldGen {
   public:
+    constexpr static f32 water_height = 30.0f;
+
     WorldGen(const WorldGen &) = delete;
     WorldGen(WorldGen &&) = delete;
     WorldGen operator=(const WorldGen &) = delete;
@@ -33,12 +36,24 @@ class WorldGen {
         e = glm::clamp(e, 0.0f, 1.0f);
         f32 e_height = get_height_from_points(ero, e);
 
-        return c_height * 0.33f + e_height * 0.33f + p_height * 0.33f;
+        return c_height * 0.33f + e_height * 0.41f + p_height * 0.25f;
     }
 
     f32 get_height_change(f32 x, f32 y) {
         static constexpr f32 factor = 1.0f / 4.0f;
         return height_change().noise2D(x * factor, y * factor);
+    }
+
+    BlockType get_biome(f32 height, f32 t, f32 h) {
+        if (t > 0.8f && h > 0.8f) {
+            return BlockType::GRASS;
+        }
+        // hot and dry
+        if (t > 0.8f && h < 0.2f) {
+            return BlockType::COAL;
+        }
+        // temperate
+        return BlockType::SAND;
     }
 
   private:
@@ -94,30 +109,32 @@ class WorldGen {
 
     f32 get_peaks_valleys(f32 x, f32 y) {
         static constexpr f32 factor = 1.0f / 64.0f;
-        static constexpr u32 octaves = 5;
+        static constexpr u32 octaves = 4;
         static constexpr f32 amplitude = 0.4f;
         return peaks_valleys().octave2D_11(
             x * factor, y * factor, octaves, amplitude);
     }
 
     f32 get_erosion(f32 x, f32 y) {
-        static constexpr f32 factor = 1.0f / 512.0f;
+        static constexpr f32 factor = 1.0f / 128.0f;
         static constexpr u32 octaves = 2;
-        static constexpr f32 amplitude = 0.2f;
+        static constexpr f32 amplitude = 0.6f;
         return erosion().octave2D_11(
             x * factor, y * factor, octaves, amplitude);
     }
 
     WorldGen() {
         // generate continental terrain points
-        cont.push_back({0.0f, 0.0f});
-        cont.push_back({0.0707f, 0.01042f});
-        cont.push_back({0.3034f, 0.01742f});
-        cont.push_back({0.4364f, 0.33413f});
-        cont.push_back({0.4665f, 0.66269f});
-        cont.push_back({0.4901f, 0.92365f});
-        cont.push_back({0.6475f, 0.97455f});
-        cont.push_back({1.0f, 1.0f});
+        cont.push_back({0.0f, 1.0f});
+        cont.push_back({0.08f, 0.19f});
+        cont.push_back({0.33f, 0.19f});
+        cont.push_back({0.36f, 0.39f});
+        cont.push_back({0.51f, 0.45f});
+        cont.push_back({0.56f, 0.75f});
+        cont.push_back({0.6f, 0.8f});
+        cont.push_back({0.63f, 0.81f});
+        cont.push_back({0.86f, 0.84f});
+        cont.push_back({1.0f, 0.88f});
 
         // generate erosion points
         ero.push_back({0.0f, 0.97124f});
@@ -126,29 +143,22 @@ class WorldGen {
         ero.push_back({0.3613f, 0.22232f});
         ero.push_back({0.5052f, 0.11594f});
         ero.push_back({0.6937f, 0.19783f});
-        ero.push_back({0.8168f, 0.21783f});
-        ero.push_back({0.8482f, 0.12248f});
-        ero.push_back({0.9058f, 0.34430f});
+        ero.push_back({0.72f, 0.44f});
+        ero.push_back({0.84f, 0.42f});
+        ero.push_back({0.9058f, 0.14430f});
         ero.push_back({0.9215f, 0.09783f});
         ero.push_back({1.0f, 0.03986f});
 
         // generate peaks and valleys points
-        /* pv.push_back({0.0f, 0.0f}); */
-        /* pv.push_back({0.0699f, 0.0f}); */
-        /* pv.push_back({0.1222f, 0.11111f}); */
-        /* pv.push_back({0.3799f, 0.28148f}); */
-        /* pv.push_back({0.5590f, 0.29630f}); */
-        /* pv.push_back({0.7293f, 0.84444f}); */
-        /* pv.push_back({1.0f, 0.94815f}); */
-        pv.push_back({0.0f, 0.0f});
-        pv.push_back({0.0699f, 0.0f});
-        pv.push_back({0.1222f, 0.11111f});
-        pv.push_back({0.2429f, 0.23594f});
-        pv.push_back({0.3799f, 0.48148f});
-        pv.push_back({0.5590f, 0.59630f});
-        pv.push_back({0.6146f, 0.73543f});
-        pv.push_back({0.7293f, 0.84444f});
-        pv.push_back({1.0f, 0.94815f});
+        pv.push_back({0.0f, 0.2f});
+        pv.push_back({0.16, 0.26f});
+        pv.push_back({0.37, 0.43f});
+        pv.push_back({0.47, 0.7f});
+        pv.push_back({0.56, 0.92f});
+        pv.push_back({0.73, 0.84});
+        pv.push_back({0.85, 0.7f});
+        pv.push_back({0.95, 0.64f});
+        pv.push_back({1.0f, 0.64f});
     }
 
     std::vector<std::pair<f32, f32>> cont; // continentalness (cliffs/plateaus)

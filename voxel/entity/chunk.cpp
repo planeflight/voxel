@@ -1,6 +1,7 @@
 #include "voxel/entity/chunk.hpp"
 
 #include "voxel/entity/block.hpp"
+#include "voxel/entity/water.hpp"
 #include "voxel/util/worldgen.hpp"
 
 static void compress_vertex(const glm::ivec3 &pos,
@@ -186,24 +187,25 @@ void Chunk::gen_blocks() {
     auto *generator = WorldGen::instance();
     for (size_t z = 0; z < depth; ++z) {
         for (size_t x = 0; x < width; ++x) {
-            blocks[get_index(x, 0, z)].type = BlockType::GRASS;
-            if (x % 4 == 0 && z % 4 == 0) {
-                for (int y = 1; y < 3; ++y) {
-                    blocks[get_index(x, y, z)].type = BlockType::GRASS;
-                }
-            }
-            // f32 x_pos = (position.x * (f32)width + (f32)x);
-            // f32 z_pos = (position.z * (f32)depth + (f32)z);
-            //
-            // f32 h = generator->get_height(x_pos, z_pos);
-            // h = h * 2.0 - 1.0;
-            // h = 5.0f + 5.0f * h;
-            // h = omega::math::round(h);
-            // h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
-            //
-            // for (u32 y = 1; y <= h; ++y) {
-            //     blocks[get_index(x, y, z)].type = BlockType::GRASS;
+            blocks[get_index(x, 0, z)].type = BlockType::DIRT;
+            // if (x % 4 == 0 && z % 4 == 0) {
+            //     for (int y = 1; y < 3; ++y) {
+            //         blocks[get_index(x, y, z)].type = BlockType::GRASS;
+            //     }
             // }
+            f32 x_pos = (position.x * (f32)width + (f32)x);
+            f32 z_pos = (position.z * (f32)depth + (f32)z);
+            f32 factor = 1.4f;
+
+            f32 h = generator->get_height(x_pos * factor, z_pos * factor);
+            h = h * 2.0 - 1.0;
+            h = Water::height + 50.0f * h;
+            h = omega::math::round(h);
+            h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
+
+            for (u32 y = 1; y <= h; ++y) {
+                blocks[get_index(x, y, z)].type = BlockType::DIRT;
+            }
         }
     }
 }
