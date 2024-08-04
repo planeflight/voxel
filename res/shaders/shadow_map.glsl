@@ -12,8 +12,8 @@ void main() {
     // compute world offset
     vec3 pos = vec3(
         float((a_data & 0xF) >> 0),
-        float((a_data & 0x7F0) >> 4),
-        float((a_data & 0x7800) >> 11)
+        float((a_data & 0xFF0) >> 4),
+        float((a_data & 0xF000) >> 12)
     );
     pos += u_chunk_offset * u_chunk_size;
 

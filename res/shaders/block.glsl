@@ -17,8 +17,8 @@ void main() {
     // compute world offset
     vec3 pos = vec3(
         float((a_data & 0xF) >> 0),
-        float((a_data & 0x7F0) >> 4),
-        float((a_data & 0x7800) >> 11)
+        float((a_data & 0xFF0) >> 4),
+        float((a_data & 0xF000) >> 12)
     );
     pos += u_chunk_offset * u_chunk_size;
     v_pos = pos;
@@ -27,14 +27,14 @@ void main() {
 
     // set varyings
     v_tex_coords = vec2(
-        float((a_data & 0x1C0000) >> 18),
-        float((a_data & 0xE00000) >> 21)
+        float((a_data & 0x380000) >> 19),
+        float((a_data & 0x1C00000) >> 22)
     );
     v_tex_coords /= 4.0;
 
     // compute normal
     int normal_idx = int(
-        (a_data & 0x38000) >> 15
+        (a_data & 0x70000) >> 16
     );
     if (normal_idx == 0) {
         // left
