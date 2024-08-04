@@ -21,8 +21,8 @@
 
 using namespace omega;
 
-constexpr static f32 fov = 45.0f;
-constexpr static f32 far = 124.0f;
+constexpr static f32 fov = 70.0f;
+constexpr static f32 far = 150.0f;
 constexpr static f32 near = 1.0f;
 
 struct VoxelGame : public core::App {
@@ -449,7 +449,7 @@ struct VoxelGame : public core::App {
             // short side = 2rsin(fov/2)
             const f32 long_side = far;
             const f32 short_side =
-                2.5f * long_side *
+                3.0f * long_side *
                 sin_pi_over_8; // INFO: can use 2.5 instead to avoid seeing
                                // chunk loading/reloading
 
@@ -583,7 +583,7 @@ struct VoxelGame : public core::App {
     std::vector<util::sptr<Chunk>> chunks;
     util::uptr<Water> water = nullptr;
 
-    constexpr static f32 player_speed = 10.0f;
+    constexpr static f32 player_speed = 30.0f;
 
     util::uptr<gfx::renderer::DeferredRenderer> dfr = nullptr;
     util::uptr<gfx::renderer::DeferredRenderer> water_dfr = nullptr;

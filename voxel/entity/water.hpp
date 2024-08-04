@@ -108,7 +108,7 @@ struct Water {
 
     constexpr static u32 width = 300, depth = 300;
 
-    constexpr static f32 height = 29.95f;
+    constexpr static f32 height = 28.95f;
     omega::util::uptr<omega::gfx::VertexBuffer> vbo = nullptr;
     omega::util::uptr<omega::gfx::VertexArray> vao = nullptr;
     omega::util::uptr<omega::gfx::IndexBuffer> ibo = nullptr;

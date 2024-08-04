@@ -11,18 +11,31 @@ enum class BlockType : i8 {
     BRICK = 2,
     COAL = 3,
     DIRT = 4,
-    WATER = 5,
+    ICE = 5,
     SAND = 6,
     SNOW = 7,
     TREE_TRUNK = 8,
     LEAF = 9,
-    GLASS = 10,
+    JUNGLE_GRASS = 10,
+    RED_SAND = 11,
 };
 
 struct Block {
     BlockType type = BlockType::NONE;
     bool is_active() {
         return type != BlockType::NONE;
+    }
+    u8 shininess() const {
+        if (type == BlockType::ICE) {
+            return 32;
+        }
+        if (type == BlockType::SNOW) {
+            return 4;
+        }
+        if (type == BlockType::STONE) {
+            return 128;
+        }
+        return 0;
     }
     u8 x = 0, y = 0, z = 0;
 };

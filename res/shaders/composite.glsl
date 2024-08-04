@@ -46,6 +46,40 @@ float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+float noise(vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+
+    // Four corners in 2D of a tile
+    float a = rand(i);
+    float b = rand(i + vec2(1.0, 0.0));
+    float c = rand(i + vec2(0.0, 1.0));
+    float d = rand(i + vec2(1.0, 1.0));
+
+    // Smooth Interpolation
+
+    // Cubic Hermine Curve. Same as SmoothStep()
+    vec2 u = f*f*(3.0-2.0*f);
+    // u = smoothstep(0.,1.,f);
+
+    // Mix 4 corners percentages
+    return mix(a, b, u.x) +
+            (c - a)* u.y * (1.0 - u.x) +
+            (d - b) * u.x * u.y;
+}
+
+float fbm(vec2 st) {
+    int octaves = 4;
+    float t = 0.;
+    float a = 1., f = 1.;
+    for (int i = 0; i < octaves; ++i) {
+        t += a * noise(st * f);
+        f *= 2.;
+        a *= 0.5;
+    }
+    return t;
+}
+
 float get_shadow(float cos_theta) {
     vec4 frag_pos_light_space = u_light_space * texture(u_position, v_tex_coords);
     vec3 proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
@@ -132,9 +166,18 @@ float dist_sq(vec3 a, vec3 b) {
     vec3 v = a - b;
     return dot(v, v);
 }
+const vec3 sky_color = vec3(135., 206., 235.) / 255.;
+
+vec3 apply_fog(vec3 col, float t, vec3 rd, vec3 lig) {
+    const float b = 0.004;
+    float fog_amount = 1. - exp(-t*b);
+    float sun_amount = max(dot(rd, lig), 0.);
+    vec3 fog_col = mix(sky_color, vec3(1., 0.9, 0.7), pow(sun_amount, 8.));
+    return mix(col, fog_col, fog_amount);
+}
 
 void main() {
-    const vec3 sky_color = vec3(135., 206., 235.) / 255.;
+    
     // block position
     vec3 pos = texture(u_position, v_tex_coords).xyz;
     vec3 normal = texture(u_normal, v_tex_coords).xyz;
@@ -180,18 +223,16 @@ void main() {
 
     // fog
     float fog_max_dist = 180.;
-    float fog_min_dist = 100.;
+    float fog_min_dist = 120.;
+
+    vec3 view_dir = normalize(pos - u_view_pos);
+    float dist = length(pos - u_view_pos);
     vec4 fog_color = vec4(sky_color, 1.0);
 
-    float dist = length(pos - u_view_pos);
     float fog_factor = (fog_max_dist - dist) / (fog_max_dist - fog_min_dist);
     fog_factor = clamp(fog_factor, 0.0, 1.0);
 
     color = mix(fog_color, color, fog_factor);
-    // NOTE: debug
-    // if (v_tex_coords.x > 0.75 && v_tex_coords.y > 0.75) {
-    //     color = vec4(texture(u_depth_map, map2D(v_tex_coords, vec2(0.75), vec2(1.), vec2(0.), vec2(1.))).rrr, 1.0);
-    // }
 
     // gamma correction
     float gamma = 1.2; // actual gamma = 2.2

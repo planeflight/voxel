@@ -46,9 +46,9 @@ class Chunk {
         this->position = position;
     }
 
-    constexpr static uint32_t width = 15;  // x axis
-    constexpr static uint32_t depth = 15;  // z axis
-    constexpr static uint32_t height = 90; // y axis
+    constexpr static uint32_t width = 15;   // x axis
+    constexpr static uint32_t depth = 15;   // z axis
+    constexpr static uint32_t height = 127; // y axis
     constexpr static glm::vec3 dimens = glm::vec3(width, height, depth);
     constexpr static size_t max_cubes = width * depth * height;
 

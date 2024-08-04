@@ -182,32 +182,10 @@ void Chunk::gen_blocks() {
         blocks[i] = Block{BlockType::NONE, (u8)x, (u8)y, (u8)z};
     }
 
-    const f32 max_height = 80.0f;
+    const f32 max_height = 125.0f;
 
     auto *generator = WorldGen::instance();
-    for (size_t z = 0; z < depth; ++z) {
-        for (size_t x = 0; x < width; ++x) {
-            blocks[get_index(x, 0, z)].type = BlockType::DIRT;
-            // if (x % 4 == 0 && z % 4 == 0) {
-            //     for (int y = 1; y < 3; ++y) {
-            //         blocks[get_index(x, y, z)].type = BlockType::GRASS;
-            //     }
-            // }
-            f32 x_pos = (position.x * (f32)width + (f32)x);
-            f32 z_pos = (position.z * (f32)depth + (f32)z);
-            f32 factor = 1.4f;
-
-            f32 h = generator->get_height(x_pos * factor, z_pos * factor);
-            h = h * 2.0 - 1.0;
-            h = Water::height + 50.0f * h;
-            h = omega::math::round(h);
-            h = omega::math::clamp(h, 0.0f, max_height - 1.0f);
-
-            for (u32 y = 1; y <= h; ++y) {
-                blocks[get_index(x, y, z)].type = BlockType::DIRT;
-            }
-        }
-    }
+    generator->gen(blocks, position, width, depth, height);
 }
 
 void Chunk::load_mesh() {
