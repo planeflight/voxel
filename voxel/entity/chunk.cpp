@@ -11,14 +11,14 @@ static void compress_vertex(const glm::ivec3 &pos,
     uint32_t data = 0;
     // set position
     data |= (pos.x << 0) & 0xF;
-    data |= (pos.y << 4) & 0x7F0;
-    data |= (pos.z << 11) & 0x7800;
+    data |= (pos.y << 4) & 0xFF0;
+    data |= (pos.z << 12) & 0xF000;
     // set normal
-    data |= ((uint8_t)(normal) << 15) & 0x38000;
+    data |= ((uint8_t)(normal) << 16) & 0x70000;
     // set tex coord x
-    data |= (tex_uv.x << 18) & 0x1C0000;
+    data |= (tex_uv.x << 19) & 0x380000;
     // set tex coord y
-    data |= (tex_uv.y << 21) & 0xE00000;
+    data |= (tex_uv.y << 22) & 0x1C00000;
     vertex.data = data;
 }
 

@@ -70,7 +70,8 @@ class WorldGen {
                                             Water::height - 10.0f,
                                             Water::height + 10.0f,
                                             height);
-                f32 actual_height = map_range(0.0f, 1.0f, 1.0f, 120.0f, height);
+                f32 actual_height =
+                    map_range(0.0f, 1.0f, 20.0f, 190.0f, height);
                 // generate biome type
                 f = 0.003f;
                 f32 temp =

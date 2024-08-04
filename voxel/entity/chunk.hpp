@@ -18,11 +18,11 @@ enum class Direction : uint8_t {
 
 /**
  * [0-4) -> x             2^4 = 15 + 1
- * [4-11) -> y            2^7 = 127 + 1
- * [11-15) -> z           2^4 = 15 + 1
- * [15-18) -> normal      2^3 > 6
- * [18-21) -> tex coord x 2^3 > 4 + 1
- * [21-24) -> tex coord y 2^3 > 4 + 1
+ * [4-12) -> y            2^8 = 255 + 1
+ * [12-16) -> z           2^4 = 15 + 1
+ * [16-19) -> normal      2^3 > 6
+ * [19-22) -> tex coord x 2^3 > 4 + 1
+ * [22-25) -> tex coord y 2^3 > 4 + 1
  */
 
 struct Vertex {
@@ -48,7 +48,7 @@ class Chunk {
 
     constexpr static uint32_t width = 15;   // x axis
     constexpr static uint32_t depth = 15;   // z axis
-    constexpr static uint32_t height = 127; // y axis
+    constexpr static uint32_t height = 255; // y axis
     constexpr static glm::vec3 dimens = glm::vec3(width, height, depth);
     constexpr static size_t max_cubes = width * depth * height;
 
