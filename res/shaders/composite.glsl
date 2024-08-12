@@ -222,8 +222,8 @@ void main() {
     }
 
     // fog
-    float fog_max_dist = 180.;
-    float fog_min_dist = 120.;
+    float fog_max_dist = 250.;
+    float fog_min_dist = 100.;
 
     vec3 view_dir = normalize(pos - u_view_pos);
     float dist = length(pos - u_view_pos);

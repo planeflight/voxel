@@ -34,7 +34,7 @@ struct VoxelGame : public core::App {
         gfx::set_depth_test(true);
 
         globals->input.set_relative_mouse_mode(true);
-        player = util::create_uptr<Player>(math::vec3(500.0f, 30.0f, 500.0f),
+        player = util::create_uptr<Player>(math::vec3(500.0f, 100.0f, 500.0f),
                                            math::vec3(1.0f));
         player->set_projection(fov, 1600.0f / 900.0f, near, far);
         // create sun
