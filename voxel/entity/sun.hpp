@@ -13,7 +13,7 @@ struct Sun : omega::scene::OrthographicCamera {
     omega::math::vec3 diffuse{0.0f};
 
     constexpr static float near = -20.0f, far = 20.0f;
-    constexpr static float shadow_distance = 256.0f;
+    constexpr static float shadow_distance = 512.0f;
 
     Sun()
         : omega::scene::OrthographicCamera::OrthographicCamera(near,
@@ -28,7 +28,7 @@ struct Sun : omega::scene::OrthographicCamera {
     void update_camera(Player &player) {
         using namespace omega;
 
-        const f32 frustum = 256.0f;
+        const f32 frustum = 512.0f;
         const math::vec2 min{-frustum / 2.0f}, max{frustum / 2.0f};
         projection_matrix = math::ortho(min.x,
                                         max.x,

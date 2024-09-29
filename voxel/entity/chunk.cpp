@@ -171,10 +171,8 @@ void Chunk::update_chunk() {
 void Chunk::gen_blocks() {
     // initialize with empty blocks
     blocks = new Block[max_cubes];
-    if (blocks == nullptr) {
-        omega::util::err("No memory available for blocks!");
-        return;
-    }
+    omega::core::assert(blocks != nullptr, "No memory available for blocks!");
+
     // fill with clear blocks
     size_t x, y, z;
     for (size_t i = 0; i < max_cubes; ++i) {
