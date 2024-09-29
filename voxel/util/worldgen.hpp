@@ -43,7 +43,11 @@ class WorldGen {
 
         // combining 3 layers of fbm with spline based
         // mountains/valleys/plateaus
-        return (c + e + p + c_height + e_height + p_height) / 6.0f;
+        f32 w1 = 1.5f, w2 = 1.5f, w3 = 1.5f;
+        f32 w4 = 1.0f, w5 = 1.2f, w6 = 1.2f;
+        return (c * w1 + e * w2 + p * w3 + c_height * w4 + e_height * w5 +
+                p_height * w6) /
+               (w1 + w2 + w3 + w4 + w5 + w6);
     }
 
     f32 get_height_change(f32 x, f32 y, f32 factor) {
@@ -102,7 +106,7 @@ class WorldGen {
                 blocks[idx(x, 0, z)].type = BlockType::STONE;
 
                 // sample height
-                f32 f = 1.4f;
+                f32 f = 0.85f;
                 f32 base_height = get_height(x_w * f, z_w * f);
                 // generate biome type
                 f = 0.005f; // temperature & humidity frequency modifier
@@ -127,9 +131,9 @@ class WorldGen {
                 height = omega::math::map_range(
                     0.0f,
                     1.0f,
-                    0.0f,
-                    190.0f,
-                    base_height * 0.5f + info.height * 0.5f);
+                    -80.0f,
+                    340.0f,
+                    base_height * 0.75f + info.height * 0.25f);
                 height = omega::math::clamp(height, 0.0f, 255.0f);
 
                 // place sand blocks
@@ -335,7 +339,7 @@ class WorldGen {
         f32 amplitude = 0.8f;
         // extra erosion layer
         if (erosion().noise2D(x * factor, y * factor) < 0.0f) {
-            amplitude /= 1.5f;
+            amplitude /= 1.1f;
         }
         return erosion().octave2D_11(
             x * factor, y * factor, octaves, amplitude);

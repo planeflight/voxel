@@ -22,7 +22,7 @@
 using namespace omega;
 
 constexpr static f32 fov = 70.0f;
-constexpr static f32 far = 150.0f;
+constexpr static f32 far = 200.0f;
 constexpr static f32 near = 1.0f;
 
 struct VoxelGame : public core::App {
@@ -30,11 +30,12 @@ struct VoxelGame : public core::App {
 
     void setup() override {
         util::seed_time();
+        // omega::core::assert(false, "this thing works");
         // gfx::enable_blending();
         gfx::set_depth_test(true);
 
-        globals->input.set_relative_mouse_mode(true);
-        player = util::create_uptr<Player>(math::vec3(500.0f, 100.0f, 500.0f),
+        globals->input.mouse.set_relative_mode(true);
+        player = util::create_uptr<Player>(math::vec3(0.0f, 100.0f, 0.0f),
                                            math::vec3(1.0f));
         player->set_projection(fov, 1600.0f / 900.0f, near, far);
         // create sun
@@ -399,6 +400,7 @@ struct VoxelGame : public core::App {
                     player->position.x,
                     player->position.y,
                     player->position.z);
+        ImGui::Text("fps: %f", 1.0f / dt);
         ImGui::End();
     }
     static constexpr u8 chunk_active = 95;
@@ -412,9 +414,6 @@ struct VoxelGame : public core::App {
     std::unordered_map<math::vec3, omega::util::sptr<Chunk>> chunks_cache;
 
     void update(f32 dt) override {
-        player->update(dt, -25.0f);
-        player->handle_collisions(dt, chunks[0].get());
-
         sun->update_camera(*player);
 
         static glm::vec3 cam_last_position = player->position;
@@ -535,41 +534,45 @@ struct VoxelGame : public core::App {
     }
 
     void input(f32 dt) override {
-        auto &keys = globals->input.get_key_manager();
-        if (keys.key_pressed(events::Key::k_escape)) {
+        using namespace omega::events;
+        auto &keys = globals->input.key_manager;
+        if (keys[Key::k_escape]) {
             running = false;
         }
         // update camera
-        // forwards
-        if (keys.key_pressed(omega::events::Key::k_w) ||
-            keys.key_pressed(omega::events::Key::k_up)) {
-            player->position += player->get_front() * player_speed * dt;
-        } // backwards
-        else if (keys.key_pressed(omega::events::Key::k_s) ||
-                 keys.key_pressed(omega::events::Key::k_down)) {
-            player->position -= player->get_front() * player_speed * dt;
-        } // left
-        else if (keys.key_pressed(omega::events::Key::k_a) ||
-                 keys.key_pressed(omega::events::Key::k_left)) {
-            player->position -= player->get_right() * player_speed * dt;
-        } // right
-        else if (keys.key_pressed(omega::events::Key::k_d) ||
-                 keys.key_pressed(omega::events::Key::k_right)) {
-            player->position += player->get_right() * player_speed * dt;
-        }
+        auto f = player->get_front(), r = player->get_right();
+        // f.y = 0.0f;
+        // r.y = 0.0f;
+
+        // poll keys
+        auto forwards = keys[Key::k_w] || keys[Key::k_up];
+        auto back = keys[Key::k_s] || keys[Key::k_down];
+        auto left = keys[Key::k_a] || keys[Key::k_left];
+        auto right = keys[Key::k_d] || keys[Key::k_right];
+
+        omega::math::vec3 move{0.0f};
+        if (forwards)
+            move = f;
+        else if (back)
+            move = -f;
+        if (left)
+            move = -r;
+        else if (right)
+            move = r;
+        player->move(dt, -30.0f, move, chunks_cache[math::vec3(0.0f)].get());
 
         // jump
         if (keys.key_just_pressed(omega::events::Key::k_space)) {
             player->velocity.y = 10.0f;
         }
 
-        glm::vec2 mouse_move = globals->input.get_mouse_move();
-        mouse_move *= globals->input.get_mouse_sensitivity();
+        glm::vec2 mouse_move = globals->input.mouse.get_move();
+        mouse_move *= globals->input.mouse.get_sensitivity();
         player->mouse_movement(mouse_move.x, mouse_move.y);
         // enable/disable mouse
-        if (keys.key_just_released(omega::events::Key::k_m)) {
-            globals->input.set_relative_mouse_mode(
-                !globals->input.get_relative_mouse_mode());
+        if (keys.key_just_released(Key::k_m)) {
+            globals->input.mouse.set_relative_mode(
+                !globals->input.mouse.get_relative_mode());
         }
     }
 
