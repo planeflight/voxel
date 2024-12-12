@@ -26,7 +26,7 @@ struct Biome {
           const omega::math::Range<f32> &humidity,
           const omega::math::Range<f32> &h,
           BiomeType type)
-        : temperature(temp), humidity(humidity), height(h), biome(type) {}
+        : biome(type), temperature(temp), humidity(humidity), height(h) {}
 
     bool is_biome(f32 t, f32 hu, f32 h) const {
         return temperature.contains(t) && humidity.contains(hu) &&

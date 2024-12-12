@@ -35,6 +35,7 @@ struct DirectionLight {
 
 uniform vec3 u_view_pos;
 uniform DirectionLight u_sunlight;
+uniform vec3 u_sky_color;
 
 uniform sampler2D u_water_position;
 uniform sampler2D u_water_normal;
@@ -143,6 +144,10 @@ vec3 get_water(vec3 position, vec3 normal) {
 
     // ambient
     vec3 ambient = u_sunlight.ambient;
+    // when the sun goes down
+    if (cos_theta > 0.0) {
+        return ambient;
+    }
     // diffuse
     vec3 diffuse = max(cos_theta, 0.0) * u_sunlight.diffuse;
     // specular
@@ -166,18 +171,8 @@ float dist_sq(vec3 a, vec3 b) {
     vec3 v = a - b;
     return dot(v, v);
 }
-const vec3 sky_color = vec3(135., 206., 235.) / 255.;
-
-vec3 apply_fog(vec3 col, float t, vec3 rd, vec3 lig) {
-    const float b = 0.004;
-    float fog_amount = 1. - exp(-t*b);
-    float sun_amount = max(dot(rd, lig), 0.);
-    vec3 fog_col = mix(sky_color, vec3(1., 0.9, 0.7), pow(sun_amount, 8.));
-    return mix(col, fog_col, fog_amount);
-}
 
 void main() {
-    
     // block position
     vec3 pos = texture(u_position, v_tex_coords).xyz;
     vec3 normal = texture(u_normal, v_tex_coords).xyz;
@@ -216,13 +211,14 @@ void main() {
     // calculate sky color
     // HACK: bad hack should be: sky if the z > 1.0
     // assumes no object will ever be fully black
+    vec3 sky_color = u_sky_color * u_sunlight.diffuse;
     float s = 0.1;
     if (object_color.r < s && object_color.g < s && object_color.b < s) {
         color = vec4(sky_color, 1.);
     }
 
     // fog
-    float fog_max_dist = 250.;
+    float fog_max_dist = 150.;
     float fog_min_dist = 100.;
 
     vec3 view_dir = normalize(pos - u_view_pos);

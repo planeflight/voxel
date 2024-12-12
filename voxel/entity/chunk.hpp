@@ -33,23 +33,23 @@ using Quad = std::array<Vertex, 6>;
 
 class Chunk {
   public:
-    Chunk(const glm::vec3 &position);
+    Chunk(const omega::math::vec3 &position);
     ~Chunk();
 
     void render(float dt);
     void init_block(size_t x, size_t y, size_t z, int8_t type);
 
-    const glm::vec3 &get_position() const {
+    const omega::math::vec3 &get_position() const {
         return position;
     }
-    void set_position(const glm::vec3 &position) {
+    void set_position(const omega::math::vec3 &position) {
         this->position = position;
     }
 
     constexpr static uint32_t width = 15;   // x axis
     constexpr static uint32_t depth = 15;   // z axis
     constexpr static uint32_t height = 255; // y axis
-    constexpr static glm::vec3 dimens = glm::vec3(width, height, depth);
+    constexpr static omega::math::vec3 dimens = {width, height, depth};
     constexpr static size_t max_cubes = width * depth * height;
 
     bool block_active(size_t x, size_t y, size_t z) {
@@ -89,7 +89,7 @@ class Chunk {
     // block data
     Block *blocks = nullptr;
     size_t vbo_offset = 0;
-    glm::vec3 position{0.0f};
+    omega::math::vec3 position{0.0f};
     std::vector<Quad> quads_to_add;
 };
 

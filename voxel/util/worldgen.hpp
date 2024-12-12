@@ -3,8 +3,6 @@
 
 #include <vector>
 
-#include "glm/common.hpp"
-#include "glm/ext/vector_float3.hpp"
 #include "noise/perlin_noise.h"
 #include "omega/math/bezier.hpp"
 #include "omega/math/glm.hpp"
@@ -30,24 +28,25 @@ class WorldGen {
     f32 get_height(f32 x, f32 y) {
         // continental
         f32 c = get_continental(x, y) * 0.5f + 0.5f;
-        c = glm::clamp(c, 0.0f, 1.0f);
+        c = omega::math::clamp(c, 0.0f, 1.0f);
         f32 c_height = get_height_from_points(cont, c);
         // peaks and valleys
         f32 p = get_peaks_valleys(x, y) * 0.5f + 0.5f;
-        p = glm::clamp(p, 0.0f, 1.0f);
+        p = omega::math::clamp(p, 0.0f, 1.0f);
         f32 p_height = get_height_from_points(pv, p);
         // erosion
         f32 e = get_erosion(x, y) * 0.5f + 0.5f;
-        e = glm::clamp(e, 0.0f, 1.0f);
+        e = omega::math::clamp(e, 0.0f, 1.0f);
         f32 e_height = get_height_from_points(ero, e);
 
         // combining 3 layers of fbm with spline based
         // mountains/valleys/plateaus
-        f32 w1 = 1.5f, w2 = 1.5f, w3 = 1.5f;
-        f32 w4 = 1.0f, w5 = 1.2f, w6 = 1.2f;
-        return (c * w1 + e * w2 + p * w3 + c_height * w4 + e_height * w5 +
-                p_height * w6) /
-               (w1 + w2 + w3 + w4 + w5 + w6);
+        f32 w1 = 1.6f, w2 = 1.8f, w3 = 1.8f;
+        f32 w4 = 0.2f, w5 = 0.5f, w6 = 0.3f;
+        f32 combined = (c * w1 + e * w2 + p * w3 + c_height * w4 +
+                        e_height * w5 + p_height * w6) /
+                       (w1 + w2 + w3 + w4 + w5 + w6);
+        return combined;
     }
 
     f32 get_height_change(f32 x, f32 y, f32 factor) {
@@ -131,9 +130,9 @@ class WorldGen {
                 height = omega::math::map_range(
                     0.0f,
                     1.0f,
-                    -80.0f,
-                    340.0f,
-                    base_height * 0.75f + info.height * 0.25f);
+                    -90.0f,
+                    300.0f,
+                    base_height * 0.85f + info.height * 0.15f);
                 height = omega::math::clamp(height, 0.0f, 255.0f);
 
                 // place sand blocks
@@ -163,8 +162,6 @@ class WorldGen {
                         break;
                     }
                     case BiomeType::STONY_MOUNTAINS: {
-                        f32 stone_cutoff =
-                            height - get_height_change(x_w, z_w, 0.2f);
                         f32 grass_cutoff =
                             70.0f + 5.0f * get_height_change(x_w, z_w, 0.1f);
                         if (height < grass_cutoff) {
@@ -311,10 +308,10 @@ class WorldGen {
                 break;
             }
         }
-        return glm::lerp(values[i].second,
-                         values[i + 1].second,
-                         (noise_val - values[i].first) /
-                             (values[i + 1].first - values[i].first));
+        return omega::math::lerp(values[i].second,
+                                 values[i + 1].second,
+                                 (noise_val - values[i].first) /
+                                     (values[i + 1].first - values[i].first));
     }
 
     f32 get_continental(f32 x, f32 y) {
@@ -328,13 +325,13 @@ class WorldGen {
     f32 get_peaks_valleys(f32 x, f32 y) {
         static constexpr f32 factor = 1.0f / 256.0f;
         static constexpr u32 octaves = 6;
-        static constexpr f32 amplitude = 0.4f;
+        static constexpr f32 amplitude = 0.5f;
         return peaks_valleys().octave2D_11(
             x * factor, y * factor, octaves, amplitude);
     }
 
     f32 get_erosion(f32 x, f32 y) {
-        static constexpr f32 factor = 1.0f / 512.0f;
+        static constexpr f32 factor = 1.0f / 512.0f * 0.3f;
         static constexpr u32 octaves = 4;
         f32 amplitude = 0.8f;
         // extra erosion layer
@@ -348,16 +345,16 @@ class WorldGen {
     WorldGen() {
         // generate continental terrain points
         cont.push_back({0.0f, 1.0f});
-        cont.push_back({0.08f, 0.55f});
-        cont.push_back({0.33f, 0.21f});
-        cont.push_back({0.36f, 0.24f});
-        cont.push_back({0.51f, 0.45f});
-        cont.push_back({0.56f, 0.65f});
-        cont.push_back({0.6f, 0.8f});
-        cont.push_back({0.63f, 0.91f});
-        cont.push_back({0.72f, 1.0f});
-        cont.push_back({0.88f, 0.58f});
-        cont.push_back({1.0f, 0.26f});
+        cont.push_back({0.08f, 1.0f});
+        cont.push_back({0.12f, 0.45f});
+        cont.push_back({0.16f, 0.43f});
+        cont.push_back({0.31f, 0.65f});
+        cont.push_back({0.36f, 0.65f});
+        cont.push_back({0.6f, 0.18f});
+        cont.push_back({0.63f, 0.2f});
+        cont.push_back({0.72f, 0.25f});
+        cont.push_back({0.88f, 0.55f});
+        cont.push_back({1.0f, 0.45f});
 
         // generate erosion points
         ero.push_back({0.0f, 0.567124f});

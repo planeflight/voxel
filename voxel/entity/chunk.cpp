@@ -4,9 +4,9 @@
 #include "voxel/entity/water.hpp"
 #include "voxel/util/worldgen.hpp"
 
-static void compress_vertex(const glm::ivec3 &pos,
+static void compress_vertex(const omega::math::ivec3 &pos,
                             Direction normal,
-                            const glm::ivec2 &tex_uv,
+                            const omega::math::ivec2 &tex_uv,
                             Vertex &vertex) {
     uint32_t data = 0;
     // set position
@@ -29,25 +29,28 @@ static void create_quad(size_t x,
                         std::vector<Quad> &quads,
                         Direction direction) {
     // calculate vertex positions
-    glm::ivec3 vertex_positions[8];
+    omega::math::ivec3 vertex_positions[8];
     // back
-    vertex_positions[0] = glm::ivec3(x, y, z);         // bottom left back
-    vertex_positions[1] = glm::ivec3(x + 1, y, z);     // bottom right back
-    vertex_positions[2] = glm::ivec3(x + 1, y + 1, z); // top right back
-    vertex_positions[3] = glm::ivec3(x, y + 1, z);     // top left back
+    vertex_positions[0] = omega::math::ivec3(x, y, z);     // bottom left back
+    vertex_positions[1] = omega::math::ivec3(x + 1, y, z); // bottom right back
+    vertex_positions[2] = omega::math::ivec3(x + 1, y + 1, z); // top right back
+    vertex_positions[3] = omega::math::ivec3(x, y + 1, z);     // top left back
 
     // front
-    vertex_positions[4] = glm::ivec3(x, y, z + 1);         // bottom left front
-    vertex_positions[5] = glm::ivec3(x + 1, y, z + 1);     // bottom right front
-    vertex_positions[6] = glm::ivec3(x + 1, y + 1, z + 1); // top right front
-    vertex_positions[7] = glm::ivec3(x, y + 1, z + 1);     // top left front
+    vertex_positions[4] = omega::math::ivec3(x, y, z + 1); // bottom left front
+    vertex_positions[5] =
+        omega::math::ivec3(x + 1, y, z + 1); // bottom right front
+    vertex_positions[6] =
+        omega::math::ivec3(x + 1, y + 1, z + 1); // top right front
+    vertex_positions[7] = omega::math::ivec3(x, y + 1, z + 1); // top left front
 
     // set the texture coords
-    glm::ivec2 tex_offset = glm::vec2((float)(type % 4), (float)(type / 4));
-    glm::ivec2 tex_coord_bl = glm::ivec2(0, 0) + tex_offset;
-    glm::ivec2 tex_coord_br = glm::ivec2(1, 0) + tex_offset;
-    glm::ivec2 tex_coord_tr = glm::ivec2(1, 1) + tex_offset;
-    glm::ivec2 tex_coord_tl = glm::ivec2(0, 1) + tex_offset;
+    omega::math::ivec2 tex_offset =
+        omega::math::vec2((float)(type % 4), (float)(type / 4));
+    omega::math::ivec2 tex_coord_bl = omega::math::ivec2(0, 0) + tex_offset;
+    omega::math::ivec2 tex_coord_br = omega::math::ivec2(1, 0) + tex_offset;
+    omega::math::ivec2 tex_coord_tr = omega::math::ivec2(1, 1) + tex_offset;
+    omega::math::ivec2 tex_coord_tl = omega::math::ivec2(0, 1) + tex_offset;
 
     Quad q;
     switch (direction) {
@@ -109,7 +112,7 @@ static void create_quad(size_t x,
     quads.push_back(q);
 }
 
-Chunk::Chunk(const glm::vec3 &position) : position(position) {
+Chunk::Chunk(const omega::math::vec3 &position) : position(position) {
     vao = omega::util::create_uptr<omega::gfx::VertexArray>();
 
     // create the blocks using perlin noise and other algorithms
@@ -179,8 +182,6 @@ void Chunk::gen_blocks() {
         get_xyz(i, x, y, z);
         blocks[i] = Block{BlockType::NONE, (u8)x, (u8)y, (u8)z};
     }
-
-    const f32 max_height = 125.0f;
 
     auto *generator = WorldGen::instance();
     generator->gen(blocks, position, width, depth, height);

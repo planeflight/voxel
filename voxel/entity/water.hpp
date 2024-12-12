@@ -106,7 +106,7 @@ struct Water {
         vao->unbind();
     }
 
-    constexpr static u32 width = 300, depth = 300;
+    constexpr static u32 width = 350, depth = 350;
 
     constexpr static f32 height = 58.95f;
     omega::util::uptr<omega::gfx::VertexBuffer> vbo = nullptr;

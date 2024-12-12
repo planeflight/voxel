@@ -22,7 +22,7 @@
 using namespace omega;
 
 constexpr static f32 fov = 70.0f;
-constexpr static f32 far = 200.0f;
+constexpr static f32 far = 150.0f;
 constexpr static f32 near = 1.0f;
 
 struct VoxelGame : public core::App {
@@ -30,20 +30,16 @@ struct VoxelGame : public core::App {
 
     void setup() override {
         util::seed_time();
-        // omega::core::assert(false, "this thing works");
+        // core::assert(false, "this thing works");
         // gfx::enable_blending();
         gfx::set_depth_test(true);
 
         globals->input.mouse.set_relative_mode(true);
-        player = util::create_uptr<Player>(math::vec3(0.0f, 100.0f, 0.0f),
+        player = util::create_uptr<Player>(math::vec3(1000.0f, 100.0f, 1000.0f),
                                            math::vec3(1.0f));
         player->set_projection(fov, 1600.0f / 900.0f, near, far);
         // create sun
         sun = util::create_uptr<Sun>();
-        // sun->direction = math::normalize(math::vec3(0.60f, -0.7f, -0.30f));
-        sun->direction = math::normalize(math::vec3(-7.0f, -10.0f, 4.6f));
-        sun->ambient = math::vec3(0.45f);
-        sun->diffuse = math::vec3(1.0f);
 
         viewport = util::create_uptr<core::Viewport>(
             core::ViewportType::fit, 1600, 900);
@@ -108,7 +104,8 @@ struct VoxelGame : public core::App {
             // make a semi-sphere
             v = math::normalize(v);
             v *= util::random<f32>(0.0f, 1.0f);
-            // make values closer to the center on average w/ quadratic function
+            // make values closer to the center on average w/ quadratic
+            // function
             f32 scale = (f32)i / 64.0f;
             scale = math::lerp(0.1f, 1.0f, scale * scale);
             v *= scale;
@@ -195,8 +192,10 @@ struct VoxelGame : public core::App {
              .external_fmt = gfx::texture::TextureFormat::DEPTH_COMPONENT,
              .min_filter = gfx::texture::TextureParam::LINEAR,
              .mag_filter = gfx::texture::TextureParam::LINEAR,
+#ifndef EMSCRIPTEN
              .wrap_s = gfx::texture::TextureParam::CLAMP_TO_BORDER,
              .wrap_t = gfx::texture::TextureParam::CLAMP_TO_BORDER,
+#endif
              .draw_buffer = false});
         shadow_map = util::create_uptr<gfx::FrameBuffer>(
             shadow_map_size, shadow_map_size, attachments);
@@ -265,7 +264,11 @@ struct VoxelGame : public core::App {
         water_dfr->geometry_pass([&]() {
             // render water to separate gbuffer now
             gfx::set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+#ifdef EMSCRIPTEN
+            glClearDepthf(1.0f);
+#else
             glClearDepth(1.0f);
+#endif
             gfx::clear_buffer(OMEGA_GL_COLOR_BUFFER_BIT |
                               OMEGA_GL_DEPTH_BUFFER_BIT);
             auto *shader = globals->asset_manager.get_shader("water");
@@ -274,8 +277,7 @@ struct VoxelGame : public core::App {
             shader->set_uniform_mat4f("u_view", player->get_view_matrix());
             shader->set_uniform_mat4f("u_projection",
                                       player->get_projection_matrix());
-            shader->set_uniform_1f("u_time",
-                                   omega::util::time::get_time<f32>());
+            shader->set_uniform_1f("u_time", util::time::get_time<f32>());
             shader->set_uniform_2f(
                 "u_cam_pos", player->position.x, player->position.z);
 
@@ -387,11 +389,15 @@ struct VoxelGame : public core::App {
             composite_shader->set_uniform_3f("u_sunlight.direction",
                                              sun->direction);
             composite_shader->set_uniform_3f("u_sunlight.ambient",
-                                             sun->ambient);
+                                             sun->current_state.ambient);
             composite_shader->set_uniform_3f("u_sunlight.diffuse",
-                                             sun->diffuse);
+                                             sun->current_state.diffuse);
             composite_shader->set_uniform_3f("u_sunlight.specular",
-                                             sun->diffuse);
+                                             sun->current_state.diffuse);
+
+            composite_shader->set_uniform_3f(
+                "u_sky_color", math::vec3(135.0f, 206.0f, 235.0f) / 255.0f);
+
             composite_shader->set_uniform_1f("u_time",
                                              util::time::get_time<f32>());
         });
@@ -403,22 +409,14 @@ struct VoxelGame : public core::App {
         ImGui::Text("fps: %f", 1.0f / dt);
         ImGui::End();
     }
-    static constexpr u8 chunk_active = 95;
-    f32 chunk_load_time = 0.0f;
-    u32 chunks_loaded = 0;
-
-    // map of taken chunks for constant search time
-    std::unordered_map<math::vec3, u8> current_chunks_map;
-
-    // map of all chunks ever loaded
-    std::unordered_map<math::vec3, omega::util::sptr<Chunk>> chunks_cache;
 
     void update(f32 dt) override {
         sun->update_camera(*player);
+        sun->update_lighting();
 
-        static glm::vec3 cam_last_position = player->position;
-        static glm::vec3 cam_last_forward = player->get_front();
-        const static f32 sin_pi_over_8 = math::sin(math::radians(fov / 2.0f));
+        static math::vec3 cam_last_position = player->position;
+        static math::vec3 cam_last_forward = player->get_front();
+        const static f32 sin_fov_over_2 = math::sin(math::radians(fov / 2.0f));
 
         // update frequency with texels
         f32 voxels = 3.0f;
@@ -439,8 +437,9 @@ struct VoxelGame : public core::App {
             // 3. load chunks that need to be loaded
             // 4. get chunks that need to be deleted
 
-            // use unordered_set for O(1) insertion + unique coordinates to add
-            std::unordered_set<glm::vec3> possible_to_add;
+            // use unordered_set for O(1) insertion + unique coordinates to
+            // add
+            std::unordered_set<math::vec3> possible_to_add;
 
             // 1. construct range of camera view
 
@@ -449,14 +448,14 @@ struct VoxelGame : public core::App {
             const f32 long_side = far;
             const f32 short_side =
                 3.0f * long_side *
-                sin_pi_over_8; // INFO: can use 2.5 instead to avoid seeing
-                               // chunk loading/reloading
+                sin_fov_over_2; // INFO: can use 2.5 instead to avoid seeing
+                                // chunk loading/reloading
 
             const auto &forward = player->get_front();
             f32 theta = 0.0f;
-            theta = glm::atan(forward.z, forward.x);
-            f32 sin_theta = glm::sin(theta);
-            f32 cos_theta = glm::cos(theta);
+            theta = math::atan(forward.z, forward.x);
+            f32 sin_theta = math::sin(theta);
+            f32 cos_theta = math::cos(theta);
             // construct rectangle coordinates
 
             // 1. get chunks in camera view
@@ -475,13 +474,13 @@ struct VoxelGame : public core::App {
                     // rounding errors after a floating point rotation since
                     // insertion is cheap
                     possible_to_add.emplace(math::vec3(
-                        glm::floor(rotated.x), 0.0f, glm::floor(rotated.z)));
+                        math::floor(rotated.x), 0.0f, math::floor(rotated.z)));
                     possible_to_add.emplace(math::vec3(
-                        glm::ceil(rotated.x), 0.0f, glm::floor(rotated.z)));
+                        math::ceil(rotated.x), 0.0f, math::floor(rotated.z)));
                     possible_to_add.emplace(math::vec3(
-                        glm::floor(rotated.x), 0.0f, glm::ceil(rotated.z)));
+                        math::floor(rotated.x), 0.0f, math::ceil(rotated.z)));
                     possible_to_add.emplace(math::vec3(
-                        glm::ceil(rotated.x), 0.0f, glm::ceil(rotated.z)));
+                        math::ceil(rotated.x), 0.0f, math::ceil(rotated.z)));
                 }
             }
             chunk_load_time = 0.0f;
@@ -490,9 +489,9 @@ struct VoxelGame : public core::App {
                 // check if already placed
                 if (current_chunks_map[position] == chunk_active) continue;
                 // otherwise add it
-                f32 before = omega::util::time::get_time<f32>();
+                f32 before = util::time::get_time<f32>();
                 add_chunk(position.x, position.y, position.z);
-                chunk_load_time += omega::util::time::get_time<f32>() - before;
+                chunk_load_time += util::time::get_time<f32>() - before;
                 ++chunks_loaded;
             }
             // remove chunks that are not in the possible_to_add set
@@ -512,13 +511,14 @@ struct VoxelGame : public core::App {
 
         // update the day/night cycles
         // f32 t = util::time::get_time<f32>();
-        // sun->direction.x = glm::cos(t * 0.04);
-        // sun->direction.y = -glm::sin(t * 0.04);
+        // sun->direction.x = math::cos(t * 0.04);
+        // sun->direction.y = -math::sin(t * 0.04);
     }
 
     void add_chunk(i32 x, i32 y, i32 z) {
         // check if it already exists in the chunks cache
-        // if so add it to the chunk vector and add to the current chunks map
+        // if so add it to the chunk vector and add to the current chunks
+        // map
         math::vec3 position(x, y, z);
         bool exists = chunks_cache[position] != nullptr;
         if (exists) {
@@ -527,22 +527,20 @@ struct VoxelGame : public core::App {
             return;
         }
         // otherwise create a new chunk
-        auto chunk = omega::util::create_sptr<Chunk>(position);
+        auto chunk = util::create_sptr<Chunk>(position);
         chunks.push_back(chunk);
         chunks_cache[position] = *chunks.rbegin();
         current_chunks_map[position] = chunk_active;
     }
 
     void input(f32 dt) override {
-        using namespace omega::events;
+        using namespace events;
         auto &keys = globals->input.key_manager;
         if (keys[Key::k_escape]) {
             running = false;
         }
         // update camera
-        auto f = player->get_front(), r = player->get_right();
-        // f.y = 0.0f;
-        // r.y = 0.0f;
+        const auto &f = player->get_front(), &r = player->get_right();
 
         // poll keys
         auto forwards = keys[Key::k_w] || keys[Key::k_up];
@@ -550,7 +548,7 @@ struct VoxelGame : public core::App {
         auto left = keys[Key::k_a] || keys[Key::k_left];
         auto right = keys[Key::k_d] || keys[Key::k_right];
 
-        omega::math::vec3 move{0.0f};
+        math::vec3 move{0.0f};
         if (forwards)
             move = f;
         else if (back)
@@ -559,14 +557,15 @@ struct VoxelGame : public core::App {
             move = -r;
         else if (right)
             move = r;
+        // we're not adding 3D movement
         player->move(dt, -30.0f, move, chunks_cache[math::vec3(0.0f)].get());
 
         // jump
-        if (keys.key_just_pressed(omega::events::Key::k_space)) {
+        if (keys.key_just_pressed(events::Key::k_space)) {
             player->velocity.y = 10.0f;
         }
 
-        glm::vec2 mouse_move = globals->input.mouse.get_move();
+        math::vec2 mouse_move = globals->input.mouse.get_move();
         mouse_move *= globals->input.mouse.get_sensitivity();
         player->mouse_movement(mouse_move.x, mouse_move.y);
         // enable/disable mouse
@@ -580,13 +579,23 @@ struct VoxelGame : public core::App {
         viewport->on_resize(width, height);
     }
 
+    // chunk data
+    static constexpr u8 chunk_active = 95;
+    f32 chunk_load_time = 0.0f;
+    u32 chunks_loaded = 0;
+
+    // map of taken chunks for constant search time
+    std::unordered_map<math::vec3, u8> current_chunks_map;
+
+    // map of all chunks ever loaded
+    std::unordered_map<math::vec3, util::sptr<Chunk>> chunks_cache;
+
+    // entities
     util::uptr<Player> player = nullptr;
     util::uptr<Sun> sun = nullptr;
     util::uptr<core::Viewport> viewport = nullptr;
     std::vector<util::sptr<Chunk>> chunks;
     util::uptr<Water> water = nullptr;
-
-    constexpr static f32 player_speed = 30.0f;
 
     util::uptr<gfx::renderer::DeferredRenderer> dfr = nullptr;
     util::uptr<gfx::renderer::DeferredRenderer> water_dfr = nullptr;
